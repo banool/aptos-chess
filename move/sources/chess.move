@@ -151,7 +151,20 @@ module addr::chess01 {
     }
 
     // Make a move in an active game.
-    public entry fun make_move(player: &signer, game_index: u32, from_x: u8, from_y: u8, to_x: u8, to_y: u8) acquires GameStore {
+
+    public entry fun make_move(
+        player: &signer,
+        // This is the index for the game in the player's GameStore.
+        game_index: u32,
+        from_x: u8,
+        from_y: u8,
+        to_x: u8,
+        to_y: u8,
+        // This is the piece type that the player is promoting to. This is only
+        // relevant for pawn moves to the enemy end of the board. This should be zero
+        // if the player is not promoting a pawn.
+        promote_to: u8,
+    ) acquires GameStore {
         let player_addr = signer::address_of(player);
 
         let game_store = borrow_global_mut<GameStore>(player_addr);
@@ -202,7 +215,7 @@ module addr::chess01 {
         // Put the piece in the destination position.
         let row = vector::borrow_mut(&mut game.board.board, (to_y as u64));
         let dest_piece = vector::borrow_mut(row, (to_x as u64));
-        let old_piece = option::extract(dest_piece);
+        let old_piece = option::swap(dest_piece, piece);
 
         // Drop the piece that has just been taken.
         old_piece;
@@ -516,8 +529,14 @@ module addr::chess01 {
             if (option::is_none(to_piece_opt)) {
                 let middle_piece_opt;
                 if (actual_direction == UP) {
+                    if (from_y != 1) {
+                        return false
+                    };
                     middle_piece_opt = vector::borrow(vector::borrow(&board.board, ((from_y + 1) as u64)), (from_x as u64))
                 } else {
+                    if (from_y != 6) {
+                        return false
+                    };
                     middle_piece_opt = vector::borrow(vector::borrow(&board.board, ((from_y - 1) as u64)), (from_x as u64))
                 };
                 if (option::is_none(middle_piece_opt)) {
@@ -551,6 +570,9 @@ module addr::chess01 {
 
         // A white pawn at 1,1 should be able to move to 1,3.
         assert!(is_valid_pawn_move(&game.board, 1, 1, 1, 3, WHITE), 2);
+
+        // A white pawn at 1,2 should not be able to move to 1,4.
+        assert!(!is_valid_pawn_move(&game.board, 1, 2, 1, 4, WHITE), 2);
 
         // A white pawn at 1,1 should not be able to move to 1,4.
         assert!(!is_valid_pawn_move(&game.board, 1, 1, 1, 4, WHITE), 3);
