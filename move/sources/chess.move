@@ -4,7 +4,6 @@
 // TODO:
 // - Add support for en passant
 // - Add support for castling
-// - Add support for pawn promotion
 // - Add support for draw by repetition
 // - Add support for draw by insufficient material
 // - Add support for draw by agreement
@@ -30,6 +29,9 @@ module addr::chess01 {
     /// A player tried to make a move in a game that is finished.
     const E_GAME_FINISHED: u64 = 2;
 
+    /// A player tried to make a game that they're not a part of.
+    const E_PLAYER_NOT_IN_GAME: u64 = 3;
+
     const ROOK: u8 = 1;
     const KNIGHT: u8 = 2;
     const BISHOP: u8 = 3;
@@ -46,7 +48,7 @@ module addr::chess01 {
     const BLACK: u8 = 1;
 
     struct Piece has store, drop {
-        player: u8,
+        color: u8,
         piece_type: u8,
     }
 
@@ -74,36 +76,36 @@ module addr::chess01 {
     public fun create_board(): Board {
         let board = vector::empty();
 
-        // Create the board with starting positions for Player 1 (0) and Player 2 (1)
+        // Create the board with starting positions for Player 1 (WHITE) and Player 2 (BLACK).
         let i = 0;
         while (i < 8) {
             let row = vector::empty();
 
             if ((i == 0) || (i == 7)) {
-                let player;
+                let color;
                 if (i == 0) {
-                    player = WHITE;
+                    color = WHITE;
                 } else {
-                    player = BLACK;
+                    color = BLACK;
                 };
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: ROOK }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: KNIGHT }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: BISHOP }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: QUEEN }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: KING }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: BISHOP }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: KNIGHT }));
-                vector::push_back(&mut row, option::some(Piece { player: player, piece_type: ROOK }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: ROOK }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: KNIGHT }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: BISHOP }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: QUEEN }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: KING }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: BISHOP }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: KNIGHT }));
+                vector::push_back(&mut row, option::some(Piece { color: color, piece_type: ROOK }));
             } else if ((i == 1) || (i == 6)) {
-                let player;
+                let color;
                 if (i == 1) {
-                    player = WHITE;
+                    color = WHITE;
                 } else {
-                    player = BLACK;
+                    color = BLACK;
                 };
                 let j = 0;
                 while (j < 8) {
-                    vector::push_back(&mut row, option::some(Piece { player: player, piece_type: PAWN }));
+                    vector::push_back(&mut row, option::some(Piece { color: color, piece_type: PAWN }));
                     j = j + 1;
                 }
             } else {
@@ -122,7 +124,7 @@ module addr::chess01 {
     }
 
     // Create a new game
-    public fun create_game(player1: &signer, player2: address) acquires GameStore {
+    public fun create_game(player1: &signer, player2_addr: address) acquires GameStore {
         // Create the board.
         let board = create_board();
 
@@ -131,7 +133,7 @@ module addr::chess01 {
 
         let game = Game {
             player1: player1_addr,
-            player2: player2,
+            player2: player2_addr,
             board: board,
             current_turn: 0,
             finished: false,
@@ -161,14 +163,27 @@ module addr::chess01 {
         to_x: u8,
         to_y: u8,
         // This is the piece type that the player is promoting to. This is only
-        // relevant for pawn moves to the enemy end of the board. This should be zero
-        // if the player is not promoting a pawn.
+        // relevant for pawn moves to the enemy end of the board. This will be ignored
+        // if the move is not a pawn move to the enemy end of the board.
         promote_to: u8,
     ) acquires GameStore {
         let player_addr = signer::address_of(player);
 
         let game_store = borrow_global_mut<GameStore>(player_addr);
         let game = simple_map::borrow_mut(&mut game_store.games, &game_index);
+
+        // Assert that it is the player's turn. For now the first player is always
+        // white.
+        let color;
+        if (game.player1 == player_addr) {
+            assert!(game.current_turn == 0, E_NOT_YOUR_TURN);
+            color = WHITE;
+        } else if (game.player2 == player_addr) {
+            assert!(game.current_turn == 1, E_NOT_YOUR_TURN);
+            color = BLACK;
+        } else {
+            abort(E_PLAYER_NOT_IN_GAME);
+        };
 
         // Assert the game is not finished.
         assert!(!game.finished, E_GAME_FINISHED);
@@ -178,7 +193,7 @@ module addr::chess01 {
         // which depends on if we do any kind of random color assignment or not.
 
         // Assert the move passes some basic validity checks.
-        assert!(is_valid_basic(&game.board, from_x, from_y, to_x, to_y, game.current_turn), E_INVALID_MOVE);
+        assert!(is_valid_basic(&game.board, from_x, from_y, to_x, to_y, color), E_INVALID_MOVE);
 
         // Get the moving piece. At this point we have asserted that there is a piece
         // in the starting position, so we can unwrap the option.
@@ -188,17 +203,17 @@ module addr::chess01 {
         // Assert the move is valid based on the piece's movement rules.
         let valid_move: bool;
         if (piece_type == KING) {
-            valid_move = is_valid_king_move(&game.board, from_x, from_y, to_x, to_y, game.current_turn);
+            valid_move = is_valid_king_move(&game.board, from_x, from_y, to_x, to_y, color);
         } else if (piece_type == QUEEN) {
-            valid_move = is_valid_queen_move(&game.board, from_x, from_y, to_x, to_y, game.current_turn);
+            valid_move = is_valid_queen_move(&game.board, from_x, from_y, to_x, to_y, color);
         } else if (piece_type == ROOK) {
-            valid_move = is_valid_rook_move(&game.board, from_x, from_y, to_x, to_y, game.current_turn);
+            valid_move = is_valid_rook_move(&game.board, from_x, from_y, to_x, to_y, color);
         } else if (piece_type == BISHOP) {
-            valid_move = is_valid_bishop_move(&game.board, from_x, from_y, to_x, to_y, game.current_turn);
+            valid_move = is_valid_bishop_move(&game.board, from_x, from_y, to_x, to_y, color);
         } else if (piece_type == KNIGHT) {
-            valid_move = is_valid_knight_move(&game.board, from_x, from_y, to_x, to_y, game.current_turn);
+            valid_move = is_valid_knight_move(&game.board, from_x, from_y, to_x, to_y, color);
         } else if (piece_type == PAWN) {
-            valid_move = is_valid_pawn_move(&game.board, from_x, from_y, to_x, to_y, game.current_turn);
+            valid_move = is_valid_pawn_move(&game.board, from_x, from_y, to_x, to_y, color);
         } else {
             // This should never be possible.
             abort 0;
@@ -210,6 +225,17 @@ module addr::chess01 {
             let row = vector::borrow_mut(&mut game.board.board, (from_y as u64));
             let piece = vector::borrow_mut(row, (from_x as u64));
             option::extract(piece)
+        };
+
+        // Promote the pawn if applicable.
+        if (
+            piece_type == PAWN &&
+            (promote_to == QUEEN || promote_to == ROOK || promote_to == BISHOP || promote_to == KNIGHT) &&
+            (
+                (color == WHITE && to_y == 7) || (color == BLACK && to_y == 0))
+            )
+        {
+            piece.piece_type = promote_to;
         };
 
         // Put the piece in the destination position.
@@ -232,7 +258,7 @@ module addr::chess01 {
         position < 8
     }
 
-    fun is_valid_basic(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
+    fun is_valid_basic(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
         // Check that the positions are in the valid range.
         if (!position_is_valid(from_x) || !position_is_valid(from_y) || !position_is_valid(to_x) || !position_is_valid(to_y)) {
             return false
@@ -248,7 +274,7 @@ module addr::chess01 {
         if (option::is_none(moving_piece)) {
             return false
         };
-        if (option::borrow(moving_piece).piece_type == player) {
+        if (option::borrow(moving_piece).color == color) {
             return false
         };
 
@@ -257,7 +283,7 @@ module addr::chess01 {
 
     // At this point we should have already asserted that the starting position
     // has a rook in it.
-    fun is_valid_rook_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
+    fun is_valid_rook_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
         // Check if the move is either horizontal or vertical.
         if (from_x != to_x && from_y != to_y) {
             return false
@@ -283,7 +309,7 @@ module addr::chess01 {
             if (option::is_some(piece_opt)) {
                 if (current_x == to_x && current_y == to_y) {
                     let piece = option::borrow(piece_opt);
-                    if (piece.player == player) {
+                    if (piece.color == color) {
                         return false
                     };
                 } else {
@@ -304,7 +330,7 @@ module addr::chess01 {
         let game_store = borrow_global_mut<GameStore>(player1_addr);
         let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
 
-        let player = WHITE;
+        let color = WHITE;
 
         // Note: We don't validate that the starting position has a rook in it.
         // This is nice because we can put a rook anywhere on a freshly set up
@@ -312,27 +338,27 @@ module addr::chess01 {
 
         // A rook in the starting position in 0,0 should not be able to move right
         // since a friendly bishop is in the way.
-        assert!(!is_valid_rook_move(&game.board, 0, 0, 1, 0, player), 1);
+        assert!(!is_valid_rook_move(&game.board, 0, 0, 1, 0, color), 1);
 
         // A rook at 0,2 should not be able to take the enemy rook at 0,7 because
         // a pawn is in the way at 0,6.
-        assert!(!is_valid_rook_move(&game.board, 0, 2, 0, 7, player), 2);
+        assert!(!is_valid_rook_move(&game.board, 0, 2, 0, 7, color), 2);
 
         // A rook at 0,2 should be able to take the enemy pawn at 0,6 because
         // there is nothing in the way.
-        assert!(is_valid_rook_move(&game.board, 0, 2, 0, 6, player), 3);
+        assert!(is_valid_rook_move(&game.board, 0, 2, 0, 6, color), 3);
 
         // A rook at 0,2 should not be able to take its own pawn at 0,1.
-        assert!(!is_valid_rook_move(&game.board, 0, 2, 0, 1, player), 3);
+        assert!(!is_valid_rook_move(&game.board, 0, 2, 0, 1, color), 3);
 
         // A rook at 0,4 should be able to move to 7,4 because nothing is in the way.
-        assert!(is_valid_rook_move(&game.board, 0, 4, 7, 4, player), 4);
+        assert!(is_valid_rook_move(&game.board, 0, 4, 7, 4, color), 4);
 
         // A rook should not be able to move diagonally.
-        assert!(!is_valid_rook_move(&game.board, 3, 3, 4, 4, player), 5);
+        assert!(!is_valid_rook_move(&game.board, 3, 3, 4, 4, color), 5);
     }
 
-    fun is_valid_knight_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
+    fun is_valid_knight_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
         let delta_x = if (from_x > to_x) { from_x - to_x } else { to_x - from_x };
         let delta_y = if (from_y > to_y) { from_y - to_y } else { to_y - from_y };
 
@@ -343,7 +369,7 @@ module addr::chess01 {
         let to_piece_opt = vector::borrow(vector::borrow(&board.board, (to_y as u64)), (to_x as u64));
         if (option::is_some(to_piece_opt)) {
             let to_piece = option::borrow(to_piece_opt);
-            if (to_piece.player == player) {
+            if (to_piece.color == color) {
                 return false
             }
         };
@@ -359,28 +385,28 @@ module addr::chess01 {
         let game_store = borrow_global_mut<GameStore>(player1_addr);
         let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
 
-        let player = WHITE;
+        let color = WHITE;
 
         // Test 1: Knight should be able to move in L-shape (2 squares in one axis and 1 square in the other)
-        assert!(is_valid_knight_move(&game.board, 1, 0, 2, 2, player), 1);
+        assert!(is_valid_knight_move(&game.board, 1, 0, 2, 2, color), 1);
 
         // Test 2: Knight should be able to move in L-shape (1 square in one axis and 2 squares in the other)
-        assert!(is_valid_knight_move(&game.board, 2, 2, 4, 3, player), 2);
+        assert!(is_valid_knight_move(&game.board, 2, 2, 4, 3, color), 2);
 
         // Test 3: Knight should be able to capture an opponent's piece (the enemy rook at 0,7)
-        assert!(is_valid_knight_move(&game.board, 1, 5, 0, 7, player), 3);
+        assert!(is_valid_knight_move(&game.board, 1, 5, 0, 7, color), 3);
 
         // Test 4: Knight should not be able to capture a friendly piece
-        assert!(!is_valid_knight_move(&game.board, 1, 0, 3, 1, player), 4);
+        assert!(!is_valid_knight_move(&game.board, 1, 0, 3, 1, color), 4);
 
         // Test 5: Knight should not be able to move in a straight line
-        assert!(!is_valid_knight_move(&game.board, 3, 2, 3, 4, player), 5);
+        assert!(!is_valid_knight_move(&game.board, 3, 2, 3, 4, color), 5);
 
         // Test 6: Knight should not be able to move in a diagonal line
-        assert!(!is_valid_knight_move(&game.board, 3, 2, 4, 3, player), 6);
+        assert!(!is_valid_knight_move(&game.board, 3, 2, 4, 3, color), 6);
     }
 
-    fun is_valid_bishop_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
+    fun is_valid_bishop_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
         if (!position_is_valid(from_x) || !position_is_valid(from_y) || !position_is_valid(to_x) || !position_is_valid(to_y)) {
             return false
         };
@@ -416,7 +442,7 @@ module addr::chess01 {
         let to_piece_opt = vector::borrow(vector::borrow(&board.board, (to_y as u64)), (to_x as u64));
         if (option::is_some(to_piece_opt)) {
             let to_piece = option::borrow(to_piece_opt);
-            if (to_piece.player == player) {
+            if (to_piece.color == color) {
                 return false
             }
         };
@@ -432,25 +458,25 @@ module addr::chess01 {
         let game_store = borrow_global_mut<GameStore>(player1_addr);
         let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
 
-        let player = WHITE;
+        let color = WHITE;
 
         // A bishop at 2,0 should not be able to move to 4,2, because its own pawn is in the way.
-        assert!(!is_valid_bishop_move(&game.board, 2, 0, 4, 2, player), 1);
+        assert!(!is_valid_bishop_move(&game.board, 2, 0, 4, 2, color), 1);
 
         // A bishop at 3,3 should not be able to move to 3,5, because it's not a diagonal move.
-        assert!(!is_valid_bishop_move(&game.board, 3, 3, 3, 5, player), 2);
+        assert!(!is_valid_bishop_move(&game.board, 3, 3, 3, 5, color), 2);
 
         // A bishop at 2,2 should be able to move to 5,5, because nothing is in the way.
-        assert!(is_valid_bishop_move(&game.board, 2, 2, 5, 5, player), 3);
+        assert!(is_valid_bishop_move(&game.board, 2, 2, 5, 5, color), 3);
 
         // A bishop at 3,3 should be able to capture the enemy pawn at 6,6.
-        assert!(is_valid_bishop_move(&game.board, 3, 3, 6, 6, player), 4);
+        assert!(is_valid_bishop_move(&game.board, 3, 3, 6, 6, color), 4);
 
         // A bishop at 3,3 should not be able to capture its own pawn at 5,1.
-        assert!(!is_valid_bishop_move(&game.board, 3, 3, 5, 1, player), 5);
+        assert!(!is_valid_bishop_move(&game.board, 3, 3, 5, 1, color), 5);
     }
 
-    fun is_valid_king_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
+    fun is_valid_king_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
         let delta_x = if (from_x < to_x) { to_x - from_x } else { from_x - to_x };
         let delta_y = if (from_y < to_y) { to_y - from_y } else { from_y - to_y };
 
@@ -464,7 +490,7 @@ module addr::chess01 {
         // If there's a piece at the target position, ensure it's not a friendly piece.
         if (option::is_some(to_piece_opt)) {
             let to_piece = option::borrow(to_piece_opt);
-            if (to_piece.player == player) {
+            if (to_piece.color == color) {
                 return false
             };
         };
@@ -480,30 +506,30 @@ module addr::chess01 {
         let game_store = borrow_global_mut<GameStore>(player1_addr);
         let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
 
-        let player = WHITE;
+        let color = WHITE;
 
         // A king at 4,0 should not be able to move to 4,2, because it's more than one square away.
-        assert!(!is_valid_king_move(&game.board, 4, 0, 4, 2, player), 1);
+        assert!(!is_valid_king_move(&game.board, 4, 0, 4, 2, color), 1);
 
         // A king at 4,0 should not be able to move to 6,0, because it's more than one square away.
-        assert!(!is_valid_king_move(&game.board, 4, 0, 6, 0, player), 2);
+        assert!(!is_valid_king_move(&game.board, 4, 0, 6, 0, color), 2);
 
         // A king at 3,3 should be able to move to 4,4 because it's one square away and no piece is blocking the way.
-        assert!(is_valid_king_move(&game.board, 3, 3, 4, 4, player), 3);
+        assert!(is_valid_king_move(&game.board, 3, 3, 4, 4, color), 3);
 
         // A king at 0,7 should be able to capture the enemy knight at 1,7.
-        assert!(is_valid_king_move(&game.board, 0, 7, 1, 7, player), 4);
+        assert!(is_valid_king_move(&game.board, 0, 7, 1, 7, color), 4);
 
         // A king at 4,0 should not be able to capture its own queen at 3,0.
-        assert!(!is_valid_king_move(&game.board, 4, 0, 3, 0, player), 5);
+        assert!(!is_valid_king_move(&game.board, 4, 0, 3, 0, color), 5);
     }
 
-    fun is_valid_queen_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
-        return (is_valid_rook_move(board, from_x, from_y, to_x, to_y, player) || is_valid_bishop_move(board, from_x, from_y, to_x, to_y, player))
+    fun is_valid_queen_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
+        return (is_valid_rook_move(board, from_x, from_y, to_x, to_y, color) || is_valid_bishop_move(board, from_x, from_y, to_x, to_y, color))
     }
 
-    fun is_valid_pawn_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, player: u8): bool {
-        let allowed_direction: u8 = if (player == WHITE) { UP } else { DOWN };
+    fun is_valid_pawn_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
+        let allowed_direction: u8 = if (color == WHITE) { UP } else { DOWN };
 
         let delta_x = if (from_x < to_x) { to_x - from_x } else { from_x - to_x };
         let delta_y = if (from_y < to_y) { to_y - from_y } else { from_y - to_y };
@@ -514,7 +540,7 @@ module addr::chess01 {
             return false
         };
 
-        let starting_rank: u8 = if (player == WHITE) { 1 } else { 6 };
+        let starting_rank: u8 = if (color == WHITE) { 1 } else { 6 };
 
         let to_piece_opt = vector::borrow(vector::borrow(&board.board, (to_y as u64)), (to_x as u64));
 
@@ -548,7 +574,7 @@ module addr::chess01 {
         else if (delta_x == 1 && delta_y == 1) {
             if (option::is_some(to_piece_opt)) {
                 let to_piece = option::borrow(to_piece_opt);
-                if (to_piece.player != player) {
+                if (to_piece.color != color) {
                     return true
                 };
             };
@@ -606,5 +632,7 @@ module addr::chess01 {
 
         // A black pawn at 0,7 should not be able to move into a space with its own piece at 0,6.
         assert!(!is_valid_pawn_move(&game.board, 0, 7, 0, 6, BLACK), 12);
+
+        // TODO: Test pawn promotion works.
     }
 }
