@@ -17,6 +17,8 @@ module addr::chess01 {
     use std::signer;
     use std::vector;
     // use aptos_std::debug;
+    use aptos_framework::account;
+    use aptos_framework::event::{Self, EventHandle};
     use aptos_std::simple_map::{Self, SimpleMap};
 
     /// An invalid move was attempted.
@@ -30,6 +32,9 @@ module addr::chess01 {
 
     /// A player tried to make a game that they're not a part of.
     const E_PLAYER_NOT_IN_GAME: u64 = 3;
+
+    /// A player tried to make a game with themselves.
+    const E_PLAYER_MADE_GAME_WITH_SELF: u64 = 4;
 
     const ROOK: u8 = 1;
     const KNIGHT: u8 = 2;
@@ -75,6 +80,14 @@ module addr::chess01 {
 
         /// Here we track the next index to use in the above map.
         next_index: u32,
+
+        /// This contains handles to events emitted when games are created.
+        game_created_events: EventHandle<GameCreatedEvent>,
+    }
+
+    // We don't store the address of the creator, only the opponent.
+    struct GameCreatedEvent has drop, store {
+        opponent: address,
     }
 
     // Initialize and create a new board
@@ -133,9 +146,12 @@ module addr::chess01 {
         // Create the board.
         let board = create_board();
 
-        // Create the game.
         let player1_addr = signer::address_of(player1);
 
+        // Assert that the player isn't making a game with themselves.
+        assert!(player1_addr != player2_addr, E_PLAYER_MADE_GAME_WITH_SELF);
+
+        // Create the game.
         let game = Game {
             player1: player1_addr,
             player2: player2_addr,
@@ -146,7 +162,11 @@ module addr::chess01 {
 
         // Create the GameStore if necessary.
         if (!exists<GameStore>(player1_addr)) {
-            let game_store = GameStore { games: simple_map::create(), next_index: 0 };
+            let game_store = GameStore {
+                games: simple_map::create(),
+                next_index: 0,
+                game_created_events: account::new_event_handle<GameCreatedEvent>(player1),
+            };
             move_to(player1, game_store);
         };
 
@@ -155,10 +175,16 @@ module addr::chess01 {
 
         simple_map::add(&mut game_store.games, game_store.next_index, game);
         game_store.next_index = game_store.next_index + 1;
+
+        // Emit an event so that the frontend can discover games using the events table
+        // in the indexer.
+        event::emit_event<GameCreatedEvent>(
+            &mut game_store.game_created_events,
+            GameCreatedEvent { opponent: player2_addr },
+        );
     }
 
     // Make a move in an active game.
-
     public entry fun make_move(
         player: &signer,
         // This is the index for the game in the player's GameStore.
@@ -356,6 +382,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_find_king(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -411,6 +440,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_is_king_in_check(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -510,6 +542,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_king_has_valid_moves(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -580,6 +615,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_is_valid_rook_move(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -635,6 +673,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_is_valid_knight_move(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -708,6 +749,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_is_valid_bishop_move(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -760,6 +804,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_is_valid_king_move_basic(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
@@ -843,6 +890,9 @@ module addr::chess01 {
 
     #[test(player1 = @0x123, player2 = @0x321)]
     fun test_is_valid_pawn_move(player1: &signer, player2: &signer) acquires GameStore {
+        // This is necessary because the GameStore contains event handles.
+        account::create_account_for_test(signer::address_of(player1));
+
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
