@@ -11,7 +11,7 @@
 // - Add support for resigning
 // - Any TODOs down in the comments.
 
-module addr::chess01 {
+module addr::chess03 {
     use std::error;
     use std::option::{Self, Option};
     use std::signer;
@@ -19,7 +19,7 @@ module addr::chess01 {
     // use aptos_std::debug;
     use aptos_framework::account;
     use aptos_framework::event::{Self, EventHandle};
-    use aptos_std::simple_map::{Self, SimpleMap};
+    use aptos_std::table::{Self, Table};
 
     /// An invalid move was attempted.
     const E_INVALID_MOVE: u64 = 0;
@@ -76,7 +76,7 @@ module addr::chess01 {
 
     struct GameStore has key {
         /// This contains all the games the user has created.
-        games: SimpleMap<u32, Game>,
+        games: Table<u32, Game>,
 
         /// Here we track the next index to use in the above map.
         next_index: u32,
@@ -87,7 +87,58 @@ module addr::chess01 {
 
     // We don't store the address of the creator, only the opponent.
     struct GameCreatedEvent has drop, store {
+        // The index of the game in the table.
+        index: u32,
+
+        // The address of the opponent.
         opponent: address,
+    }
+
+    // Create a new game
+    public entry fun create_game(player1: &signer, player2_addr: address) acquires GameStore {
+        // Create the board.
+        let board = create_board();
+
+        let player1_addr = signer::address_of(player1);
+
+        // Assert that the player isn't making a game with themselves.
+        assert!(player1_addr != player2_addr, E_PLAYER_MADE_GAME_WITH_SELF);
+
+        // Create the game.
+        let game = Game {
+            player1: player1_addr,
+            player2: player2_addr,
+            board: board,
+            current_turn: 0,
+            game_status: ACTIVE,
+        };
+
+        // Create the GameStore if necessary.
+        if (!exists<GameStore>(player1_addr)) {
+            let game_store = GameStore {
+                games: table::new(),
+                next_index: 0,
+                game_created_events: account::new_event_handle<GameCreatedEvent>(player1),
+            };
+            move_to(player1, game_store);
+        };
+
+        // Add the game to the GameStore.
+        let game_store = borrow_global_mut<GameStore>(player1_addr);
+
+        table::add(&mut game_store.games, game_store.next_index, game);
+
+        // Emit an event so that the frontend can discover games using the events table
+        // in the indexer.
+        event::emit_event<GameCreatedEvent>(
+            &mut game_store.game_created_events,
+            GameCreatedEvent {
+                index: game_store.next_index,
+                opponent: player2_addr,
+            },
+        );
+
+        game_store.next_index = game_store.next_index + 1;
     }
 
     // Initialize and create a new board
@@ -141,49 +192,6 @@ module addr::chess01 {
         Board { board: board }
     }
 
-    // Create a new game
-    public fun create_game(player1: &signer, player2_addr: address) acquires GameStore {
-        // Create the board.
-        let board = create_board();
-
-        let player1_addr = signer::address_of(player1);
-
-        // Assert that the player isn't making a game with themselves.
-        assert!(player1_addr != player2_addr, E_PLAYER_MADE_GAME_WITH_SELF);
-
-        // Create the game.
-        let game = Game {
-            player1: player1_addr,
-            player2: player2_addr,
-            board: board,
-            current_turn: 0,
-            game_status: ACTIVE,
-        };
-
-        // Create the GameStore if necessary.
-        if (!exists<GameStore>(player1_addr)) {
-            let game_store = GameStore {
-                games: simple_map::create(),
-                next_index: 0,
-                game_created_events: account::new_event_handle<GameCreatedEvent>(player1),
-            };
-            move_to(player1, game_store);
-        };
-
-        // Add the game to the GameStore.
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-
-        simple_map::add(&mut game_store.games, game_store.next_index, game);
-        game_store.next_index = game_store.next_index + 1;
-
-        // Emit an event so that the frontend can discover games using the events table
-        // in the indexer.
-        event::emit_event<GameCreatedEvent>(
-            &mut game_store.game_created_events,
-            GameCreatedEvent { opponent: player2_addr },
-        );
-    }
-
     // Make a move in an active game.
     public entry fun make_move(
         player: &signer,
@@ -201,7 +209,7 @@ module addr::chess01 {
         let player_addr = signer::address_of(player);
 
         let game_store = borrow_global_mut<GameStore>(player_addr);
-        let game = simple_map::borrow_mut(&mut game_store.games, &game_index);
+        let game = table::borrow_mut(&mut game_store.games, game_index);
 
         // Assert that it is the player's turn. For now the first player is always
         // white.
@@ -389,7 +397,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
 
         let (x, y) = find_king(&game.board, WHITE);
         assert!(x == 4, 1);
@@ -447,7 +455,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow_mut(&mut game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow_mut(&mut game_store.games, &(game_store.next_index - 1));
 
         // Move the white king to 3,3 and verify it is not in check.
         move_piece(&mut game.board, 4, 0, 3, 3);
@@ -549,7 +557,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow_mut(&mut game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow_mut(&mut game_store.games, &(game_store.next_index - 1));
 
         // Place the white king at the center of the board.
         move_piece(&mut game.board, 4, 0, 4, 4);
@@ -622,7 +630,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -680,7 +688,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -756,7 +764,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -811,7 +819,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -897,7 +905,7 @@ module addr::chess01 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = simple_map::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
 
         // A white pawn at 1,1 should be able to move to 1,2.
         assert!(is_valid_pawn_move(&game.board, 1, 1, 1, 2, WHITE), 1);
