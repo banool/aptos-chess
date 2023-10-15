@@ -7,9 +7,16 @@
 // - Add support for draw by repetition
 // - Add support for draw by insufficient material
 // - Add support for draw by agreement
+// - Add support for various time settings
+//   (full game limits, per move limits, regaining time on move, etc)
 // - Add support for draw by time
 // - Add support for resigning
 // - Any TODOs down in the comments.
+// - Add support for custom extensions. We could define a trait that has a bunch of
+//   hook functions that the custom extension can implement, e.g. relating to the
+//   starting position of pieces, move validity, etc.
+// - Rename from_ and to_ to source_ and dest_.
+
 
 module addr::chess03 {
     use std::error;
@@ -21,20 +28,23 @@ module addr::chess03 {
     use aptos_framework::event::{Self, EventHandle};
     use aptos_std::table::{Self, Table};
 
-    /// An invalid move was attempted.
+    /// You tried to make an invalid move.
     const E_INVALID_MOVE: u64 = 0;
 
-    /// A player tried to make a move out of turn.
+    /// You tried to make a move out of turn.
     const E_NOT_YOUR_TURN: u64 = 1;
 
-    /// A player tried to make a move in a game that is finished.
+    /// You tried to make a move in a game that is finished.
     const E_GAME_FINISHED: u64 = 2;
 
-    /// A player tried to make a game that they're not a part of.
+    /// You tried to join a game that you're not a part of.
     const E_PLAYER_NOT_IN_GAME: u64 = 3;
 
-    /// A player tried to make a game with themselves.
+    /// You tried to make a game with themselves.
     const E_PLAYER_MADE_GAME_WITH_SELF: u64 = 4;
+
+    /// You tried to promote to an invalid piece type.
+    const E_INVALID_PROMOTION_INTENT: u64 = 5;
 
     const ROOK: u8 = 1;
     const KNIGHT: u8 = 2;
@@ -70,7 +80,7 @@ module addr::chess03 {
         player1: address,
         player2: address,
         board: Board,
-        current_turn: u8,
+        is_white_turn: bool,
         game_status: u8,
     }
 
@@ -109,7 +119,8 @@ module addr::chess03 {
             player1: player1_addr,
             player2: player2_addr,
             board: board,
-            current_turn: 0,
+            // The color of the player whose turn it is.
+            is_white_turn: true,
             game_status: ACTIVE,
         };
 
@@ -211,18 +222,19 @@ module addr::chess03 {
         let game_store = borrow_global_mut<GameStore>(player_addr);
         let game = table::borrow_mut(&mut game_store.games, game_index);
 
-        // Assert that it is the player's turn. For now the first player is always
-        // white.
+        // For now player1 is always white, so if the player trying to make the move is
+        // player1 then it must be white's turn.
         let color;
         if (game.player1 == player_addr) {
-            assert!(game.current_turn == 0, error::invalid_state(E_NOT_YOUR_TURN));
+            assert!(game.is_white_turn, error::invalid_state(E_NOT_YOUR_TURN));
             color = WHITE;
         } else if (game.player2 == player_addr) {
-            assert!(game.current_turn == 1, error::invalid_state(E_NOT_YOUR_TURN));
+            assert!(!game.is_white_turn, error::invalid_state(E_NOT_YOUR_TURN));
             color = BLACK;
         } else {
             abort(E_PLAYER_NOT_IN_GAME)
         };
+        let enemy_color = if (color == WHITE) { BLACK } else { WHITE };
 
         // Assert the game is not finished.
         assert!(game.game_status == ACTIVE, error::invalid_state(E_GAME_FINISHED));
@@ -245,14 +257,13 @@ module addr::chess03 {
             option::extract(piece)
         };
 
-        // Promote the pawn if applicable.
-        if (
-            piece_type == PAWN &&
-            (promote_to == QUEEN || promote_to == ROOK || promote_to == BISHOP || promote_to == KNIGHT) &&
-            (
-                (color == WHITE && to_y == 7) || (color == BLACK && to_y == 0))
-            )
-        {
+        assert!(
+            promote_to == QUEEN || promote_to == ROOK || promote_to == BISHOP || promote_to == KNIGHT,
+            error::invalid_argument(E_INVALID_PROMOTION_INTENT),
+        );
+
+        // If the piece is a pawn and it made it to the back rank, promote it.
+        if (piece_type == PAWN && ((color == WHITE && to_y == 7) || (color == BLACK && to_y == 0))) {
             piece.piece_type = promote_to;
         };
 
@@ -268,7 +279,6 @@ module addr::chess03 {
         assert!(!is_king_in_check(&game.board, color), error::invalid_state(E_INVALID_MOVE));
 
         // Check if the enemy king has any valid moves now.
-        let enemy_color = if (color == WHITE) { BLACK } else { WHITE };
         let (enemy_king_x, enemy_king_y) = find_king(&game.board, enemy_color);
         let enemy_king_has_valid_moves = king_has_valid_moves(&game.board, enemy_king_x, enemy_king_y, enemy_color);
 
@@ -282,8 +292,8 @@ module addr::chess03 {
         // check, but the enemy cannot move any piece / cannot do so without putting
         // their king in check. This is complex, so I'm avoiding this for now.
 
-        // Update the current turn.
-        game.current_turn = if (game.current_turn == WHITE) { BLACK } else { WHITE };
+        // Update whose turn it is.
+        game.is_white_turn = !game.is_white_turn;
     }
 
     // Useful for tests to move pieces wherever you want with no validation.
@@ -397,7 +407,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
 
         let (x, y) = find_king(&game.board, WHITE);
         assert!(x == 4, 1);
@@ -455,7 +465,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow_mut(&mut game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow_mut(&mut game_store.games, (game_store.next_index - 1));
 
         // Move the white king to 3,3 and verify it is not in check.
         move_piece(&mut game.board, 4, 0, 3, 3);
@@ -484,6 +494,7 @@ module addr::chess03 {
         assert!(!is_king_in_check(&game.board, WHITE), 6);
     }
 
+    // TODO: Use the UP DOWN LEFT RIGHT constants
     fun king_has_valid_moves(board: &Board, king_x: u8, king_y: u8, player: u8): bool {
         let dx: vector<u8> = vector::empty();
         let dy: vector<u8> = vector::empty();
@@ -557,7 +568,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow_mut(&mut game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow_mut(&mut game_store.games, (game_store.next_index - 1));
 
         // Place the white king at the center of the board.
         move_piece(&mut game.board, 4, 0, 4, 4);
@@ -630,7 +641,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -688,7 +699,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -764,7 +775,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -784,7 +795,7 @@ module addr::chess03 {
         assert!(!is_valid_bishop_move(&game.board, 3, 3, 5, 1, color), 5);
     }
 
-    // This just checks that the king is allowed to move into th square based on its
+    // This just checks that the king is allowed to move into the square based on its
     // normal movement rules (one square in any direction) and that it's not moving
     // into a square occupied by a friendly piece. It does not check for checks or
     // anything, this is covered by other functions.
@@ -819,7 +830,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
 
         let color = WHITE;
 
@@ -846,8 +857,15 @@ module addr::chess03 {
     fun is_valid_pawn_move(board: &Board, from_x: u8, from_y: u8, to_x: u8, to_y: u8, color: u8): bool {
         let allowed_direction: u8 = if (color == WHITE) { UP } else { DOWN };
 
+        // TODO: The math modules don't have an abs function right now. When they do,
+        // use that here.
         let delta_x = if (from_x < to_x) { to_x - from_x } else { from_x - to_x };
         let delta_y = if (from_y < to_y) { to_y - from_y } else { from_y - to_y };
+
+        // There is no valid pawn move where it doesn't move along the y axis.
+        if (delta_y == 0) {
+            return false
+        };
 
         let actual_direction: u8 = if (from_y < to_y) { UP } else { DOWN };
 
@@ -905,7 +923,7 @@ module addr::chess03 {
         let player2_addr = signer::address_of(player2);
         create_game(player1, player2_addr);
         let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, &(game_store.next_index - 1));
+        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
 
         // A white pawn at 1,1 should be able to move to 1,2.
         assert!(is_valid_pawn_move(&game.board, 1, 1, 1, 2, WHITE), 1);
