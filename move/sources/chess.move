@@ -74,6 +74,11 @@ module addr::chess {
         board: vector<vector<Option<Piece>>>,
     }
 
+    struct EnPassantTarget has store, drop {
+        x: u8,
+        y: u8,
+    }
+
     struct Game has store {
         player1: address,
         player2: address,
@@ -81,6 +86,7 @@ module addr::chess {
         is_white_turn: bool,
         white_piece_status: PieceStatus,
         black_piece_status: PieceStatus,
+        en_passant_target: Option<EnPassantTarget>,
         game_status: u8,
     }
 
@@ -135,6 +141,7 @@ module addr::chess {
             is_white_turn: true,
             white_piece_status: piece_status,
             black_piece_status: piece_status,
+            en_passant_target: option::none(),
             game_status: ACTIVE,
         };
 
@@ -348,7 +355,7 @@ module addr::chess {
     }
 
     fun is_valid_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8, piece_status: PieceStatus): bool {
-        let moving_piece = option::borrow(vector::borrow(vector::borrow(&board.board, (src_y as u64)), (src_x as u64)));
+        let moving_piece = option::borrow(borrow_piece(board, src_x, src_y));
         let piece_type = moving_piece.piece_type;
 
         // Assert the move is valid based on the piece's movement rules.
@@ -1104,7 +1111,7 @@ module addr::chess {
             return false
         };
 
-        let to_piece_opt = vector::borrow(vector::borrow(&board.board, (dest_y as u64)), (dest_x as u64));
+        let to_piece_opt = borrow_piece(board, dest_x, dest_y);
 
         // Move one square forward.
         if (delta_x == 0 && delta_y == 1) {
@@ -1120,12 +1127,12 @@ module addr::chess {
                     if (src_y != 1) {
                         return false
                     };
-                    middle_piece_opt = vector::borrow(vector::borrow(&board.board, ((src_y + 1) as u64)), (src_x as u64))
+                    middle_piece_opt = borrow_piece(board, src_x, src_y + 1)
                 } else {
                     if (src_y != 6) {
                         return false
                     };
-                    middle_piece_opt = vector::borrow(vector::borrow(&board.board, ((src_y - 1) as u64)), (src_x as u64))
+                    middle_piece_opt = borrow_piece(board, src_x, src_y - 1)
                 };
                 if (option::is_none(middle_piece_opt)) {
                     return true
