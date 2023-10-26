@@ -21,6 +21,7 @@ import { MyChessboard } from "./MyChessboard";
 export const MySidebar = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  /*
   let body;
   if (chatRooms === undefined) {
     body = <Text>Fetching chat rooms</Text>;
@@ -67,5 +68,7 @@ export const MySidebar = () => {
         </Button>
       </Box>
     );
-  }
+  }*/
+
+  return (<Box/>);
 };

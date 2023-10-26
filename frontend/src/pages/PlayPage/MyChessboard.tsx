@@ -6,7 +6,7 @@ import { Piece, Square } from "react-chessboard/dist/chessboard/types";
 import { useGetAccountResource } from "../../api/hooks/useGetAccountResource";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useSearchParams } from "react-router-dom";
-import { useGlobalState } from "../../GlobalState";
+import { getModuleIdentifier, useGlobalState } from "../../GlobalState";
 
 const moduleAddress = "0x1";
 const moduleName = "chess";
@@ -15,17 +15,25 @@ const structName = "GameStore";
 const resourceTag = `${moduleAddress}::${moduleName}::${structName}`;
 
 type MyChessboardProps = {
-  gameCreatorAddress: number;
-  gameId: number;
+  objectAddress: string;
 };
 
 // TODO: How will people know about games they've been invited to? Events?
-export const MyChessboard = ({ gameId }: MyChessboardProps) => {
-  const [game, setGame] = useState<ChessInstance | undefined>(undefined);
+export const MyChessboard = ({ objectAddress }: MyChessboardProps) => {
+  const [globalState] = useGlobalState();
+
+  const resourceAddress = getModuleIdentifier(globalState, "Game");
+  const { accountResource: gameData } = useGetAccountResource(objectAddress, resourceAddress)
+
+  // todo try typemove by sentio
+
+  console.log(`accountstuff: ${JSON.stringify(gameData)}`);
+
+  // TODO: We don't want to replace the chessinstance, we just want to manipulate it.
+  // what is the best way to do that with react?
+  const [chessInstance, setGame] = useState<ChessInstance | undefined>(undefined);
 
   const [queryIntervalMs, setQueryIntervalMs] = useState(1000);
-
-  const [globalState] = useGlobalState();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -33,12 +41,13 @@ export const MyChessboard = ({ gameId }: MyChessboardProps) => {
 
   const { signAndSubmitTransaction, account } = useWallet();
 
+  // todo fix this up
   function getPlayerColor(): PieceColor | undefined {
-    if (game === undefined) {
+    if (chessInstance === undefined) {
       return undefined;
     }
 
-    if (game.turn() === "w") {
+    if (chessInstance.turn() === "w") {
       return "w";
     }
     return "b";
@@ -46,10 +55,11 @@ export const MyChessboard = ({ gameId }: MyChessboardProps) => {
 
   function getRefetchInterval() {
     const value = 1000;
-    if (game === undefined) {
+    if (chessInstance === undefined) {
       return 0;
     }
-    if (game.turn()) {
+    // TODO: Fix this
+    if (chessInstance.turn() == getPlayerColor()) {
       return 0;
     }
 
@@ -59,15 +69,9 @@ export const MyChessboard = ({ gameId }: MyChessboardProps) => {
     return 0;
   }
 
-  const { accountResource, error, isLoading } = useGetAccountResource(
-    account!.address,
-    resourceTag,
-    { enabled: account !== null, refetchInterval: getRefetchInterval() }
-  );
-
   // Returns null if the move is illegal.
   function makeAMove(move: ShortMove): Move | null {
-    const gameCopy = Object.create(game!);
+    const gameCopy = Object.create(chessInstance!);
 
     let result;
     try {
@@ -95,10 +99,10 @@ export const MyChessboard = ({ gameId }: MyChessboardProps) => {
   }
 
   let main;
-  if (game === undefined) {
+  if (chessInstance === undefined) {
     main = <Box>Loading...</Box>;
   } else {
-    main = <Chessboard id="main" position={game.fen()} onPieceDrop={onDrop} />;
+    main = <Chessboard id="main" position={chessInstance.fen()} onPieceDrop={onDrop} />;
   }
 
   return <Box>{main}</Box>;

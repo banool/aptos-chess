@@ -99,3 +99,7 @@ export const getModuleAddress = (state: GlobalState): string => {
 export const getModuleName = (state: GlobalState): string => {
   return MODULE_NAME[state.network_name]!;
 };
+
+export const getModuleIdentifier = (state: GlobalState, identifier: string): string => {
+  return `${getModuleAddress(state)}::${getModuleName(state)}::${identifier}`;
+}

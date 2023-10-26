@@ -44,6 +44,7 @@ export function getAccountResource(
   );
 }
 
+/*
 export async function getGames(
   indexerUrl: string,
   eventHandle: string,
@@ -53,3 +54,4 @@ export async function getGames(
   // TODO: Make this query https://gist.github.com/banool/7a17abef1c39eb210e6f04f1b5679668.
   indexerClient;
 }
+*/

@@ -15,16 +15,19 @@
 //   hook functions that the custom extension can implement, e.g. relating to the
 //   starting position of pieces, move validity, etc.
 
-
 module addr::chess {
     use std::error;
     use std::option::{Self, Option};
     use std::signer;
     use std::vector;
     // use aptos_std::debug;
+    use aptos_framework::event;
+    use aptos_framework::object::{Self, Object};
+
+    #[test_only]
+    use std::features;
+    #[test_only]
     use aptos_framework::account;
-    use aptos_framework::event::{Self, EventHandle};
-    use aptos_std::table::{Self, Table};
 
     /// You tried to make an invalid move.
     const E_INVALID_MOVE: u64 = 0;
@@ -65,7 +68,7 @@ module addr::chess {
     const WHITE_WON: u8 = 2;
     const BLACK_WON: u8 = 3;
 
-    struct Piece has store, drop {
+    struct Piece has drop, store {
         color: u8,
         piece_type: u8,
     }
@@ -74,12 +77,12 @@ module addr::chess {
         board: vector<vector<Option<Piece>>>,
     }
 
-    struct EnPassantTarget has store, drop {
+    struct EnPassantTarget has drop, store {
         x: u8,
         y: u8,
     }
 
-    struct Game has store {
+    struct Game has key, store {
         player1: address,
         player2: address,
         board: Board,
@@ -90,42 +93,45 @@ module addr::chess {
         game_status: u8,
     }
 
-    struct PieceStatus has store, copy, drop {
+    struct PieceStatus has copy, drop, store {
         queen_side_rook_has_moved: bool,
         king_side_rook_has_moved: bool,
         king_has_moved: bool,
     }
 
-    struct GameStore has key {
-        /// This contains all the games the user has created.
-        games: Table<u32, Game>,
+    // game_created_events: EventHandle<GameCreatedEvent>,
 
-        /// Here we track the next index to use in the above map.
-        next_index: u32,
-
-        /// This contains handles to events emitted when games are created.
-        game_created_events: EventHandle<GameCreatedEvent>,
-    }
-
-    // We don't store the address of the creator, only the opponent.
+    // TODO: With event v2 it seems like there is no emitter anymore, either the
+    // person calling the function or the object it was emitted from, so we just
+    // include everything here for simplicity's sake. Confirm whether this is
+    // actually necessary.
+    #[event]
     struct GameCreatedEvent has drop, store {
-        // The index of the game in the table.
-        index: u32,
+        // The address of the creator.
+        creator_address: address,
 
         // The address of the opponent.
-        opponent: address,
+        opponent_address: address,
+
+        // The address of the object.
+        object_address: address,
+    }
+
+    public entry fun create_game(player1: &signer, player2_addr: address) {
+        create_game_(player1, player2_addr);
     }
 
     // Create a new game
-    public entry fun create_game(player1: &signer, player2_addr: address) acquires GameStore {
-        // Create the board.
-        let board = create_board();
-
+    public fun create_game_(player1: &signer, player2_addr: address): Object<Game> {
         let player1_addr = signer::address_of(player1);
 
         // Assert that the player isn't making a game with themselves.
         assert!(player1_addr != player2_addr, E_PLAYER_MADE_GAME_WITH_SELF);
 
+        // Create the board.
+        let board = create_board();
+
+        // Set up initial relevant status of the pieces.
         let piece_status = PieceStatus {
             queen_side_rook_has_moved: false,
             king_side_rook_has_moved: false,
@@ -145,32 +151,26 @@ module addr::chess {
             game_status: ACTIVE,
         };
 
-        // Create the GameStore if necessary.
-        if (!exists<GameStore>(player1_addr)) {
-            let game_store = GameStore {
-                games: table::new(),
-                next_index: 0,
-                game_created_events: account::new_event_handle<GameCreatedEvent>(player1),
-            };
-            move_to(player1, game_store);
-        };
+        let constructor_ref = object::create_object(player1_addr);
 
-        // Add the game to the GameStore.
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
+        let object_signer = object::generate_signer(&constructor_ref);
 
-        table::add(&mut game_store.games, game_store.next_index, game);
+        // Move the game into the container alongside the ObjectCore.
+        move_to(&object_signer, game);
+
+        let obj = object::object_from_constructor_ref(&constructor_ref);
 
         // Emit an event so that the frontend can discover games using the events table
         // in the indexer.
-        event::emit_event<GameCreatedEvent>(
-            &mut game_store.game_created_events,
+        event::emit(
             GameCreatedEvent {
-                index: game_store.next_index,
-                opponent: player2_addr,
+                creator_address: player1_addr,
+                opponent_address: player2_addr,
+                object_address: object::object_address(&obj),
             },
         );
 
-        game_store.next_index = game_store.next_index + 1;
+        obj
     }
 
     // Initialize and create a new board
@@ -228,7 +228,7 @@ module addr::chess {
     public entry fun make_move(
         player: &signer,
         // This is the index for the game in the player's GameStore.
-        game_index: u32,
+        game: Object<Game>,
         src_x: u8,
         src_y: u8,
         dest_x: u8,
@@ -237,20 +237,19 @@ module addr::chess {
         // relevant for pawn moves to the enemy end of the board. This will be ignored
         // if the move is not a pawn move to the enemy end of the board.
         promote_to: u8,
-    ) acquires GameStore {
+    ) acquires Game {
         let player_addr = signer::address_of(player);
 
-        let game_store = borrow_global_mut<GameStore>(player_addr);
-        let game = table::borrow_mut(&mut game_store.games, game_index);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         // For now player1 is always white, so if the player trying to make the move is
         // player1 then it must be white's turn.
         let color;
-        if (game.player1 == player_addr) {
-            assert!(game.is_white_turn, error::invalid_state(E_NOT_YOUR_TURN));
+        if (game_.player1 == player_addr) {
+            assert!(game_.is_white_turn, error::invalid_state(E_NOT_YOUR_TURN));
             color = WHITE;
-        } else if (game.player2 == player_addr) {
-            assert!(!game.is_white_turn, error::invalid_state(E_NOT_YOUR_TURN));
+        } else if (game_.player2 == player_addr) {
+            assert!(!game_.is_white_turn, error::invalid_state(E_NOT_YOUR_TURN));
             color = BLACK;
         } else {
             abort(E_PLAYER_NOT_IN_GAME)
@@ -260,29 +259,29 @@ module addr::chess {
         let piece_status;
         if (color == WHITE) {
             enemy_color = BLACK;
-            piece_status = game.white_piece_status;
+            piece_status = game_.white_piece_status;
         } else {
             enemy_color = WHITE;
-            piece_status = game.black_piece_status;
+            piece_status = game_.black_piece_status;
         };
 
         // Assert the game is not finished.
-        assert!(game.game_status == ACTIVE, error::invalid_state(E_GAME_FINISHED));
+        assert!(game_.game_status == ACTIVE, error::invalid_state(E_GAME_FINISHED));
 
         // Assert the move passes some basic validity checks.
-        assert!(is_valid_basic(&game.board, src_x, src_y, dest_x, dest_y, color), error::invalid_argument(E_INVALID_MOVE));
+        assert!(is_valid_basic(&game_.board, src_x, src_y, dest_x, dest_y, color), error::invalid_argument(E_INVALID_MOVE));
 
         // Get the moving piece. At this point we have asserted that there is a piece
         // in the starting position, so we can unwrap the option.
-        let moving_piece = option::borrow(borrow_piece(&game.board, src_x, src_y));
+        let moving_piece = option::borrow(borrow_piece(&game_.board, src_x, src_y));
         let piece_type = moving_piece.piece_type;
 
         // Assert the move is valid based on the piece's movement rules.
-        assert!(is_valid_move(&game.board, src_x, src_y, dest_x, dest_y, color, piece_status), error::invalid_argument(E_INVALID_MOVE));
+        assert!(is_valid_move(&game_.board, src_x, src_y, dest_x, dest_y, color, piece_status), error::invalid_argument(E_INVALID_MOVE));
 
         // Set the source position to none.
         let piece = {
-            let row = vector::borrow_mut(&mut game.board.board, (src_y as u64));
+            let row = vector::borrow_mut(&mut game_.board.board, (src_y as u64));
             let piece = vector::borrow_mut(row, (src_x as u64));
             option::extract(piece)
         };
@@ -298,7 +297,7 @@ module addr::chess {
         };
 
         // Put the piece in the destination position.
-        let row = vector::borrow_mut(&mut game.board.board, (dest_y as u64));
+        let row = vector::borrow_mut(&mut game_.board.board, (dest_y as u64));
         let dest_piece = vector::borrow_mut(row, (dest_x as u64));
         let maybe_old_piece = option::swap_or_fill(dest_piece, piece);
 
@@ -306,15 +305,15 @@ module addr::chess {
         maybe_old_piece;
 
         // Assert that the player's king is not in check now as a result of that move.
-        assert!(!is_king_in_check(&game.board, color), error::invalid_state(E_INVALID_MOVE));
+        assert!(!is_king_in_check(&game_.board, color), error::invalid_state(E_INVALID_MOVE));
 
         // Check if the enemy king has any valid moves now.
-        let (enemy_king_x, enemy_king_y) = find_king(&game.board, enemy_color);
-        let enemy_king_has_valid_moves = king_has_valid_moves(&game.board, enemy_king_x, enemy_king_y, enemy_color);
+        let (enemy_king_x, enemy_king_y) = find_king(&game_.board, enemy_color);
+        let enemy_king_has_valid_moves = king_has_valid_moves(&game_.board, enemy_king_x, enemy_king_y, enemy_color);
 
         // If the king has no valid moves and the king is in check, that is checkmate.
-        if (!enemy_king_has_valid_moves && is_king_in_check(&game.board, enemy_color)) {
-            game.game_status = if (color == WHITE) { WHITE_WON } else { BLACK_WON };
+        if (!enemy_king_has_valid_moves && is_king_in_check(&game_.board, enemy_color)) {
+            game_.game_status = if (color == WHITE) { WHITE_WON } else { BLACK_WON };
             return
         };
 
@@ -323,7 +322,25 @@ module addr::chess {
         // their king in check. This is complex, so I'm avoiding this for now.
 
         // Update whose turn it is.
-        game.is_white_turn = !game.is_white_turn;
+        game_.is_white_turn = !game_.is_white_turn;
+    }
+
+    #[test_only]
+    fun setup(
+        aptos_framework: &signer,
+        player1_addr: address,
+        player2_addr: address,
+    ) {
+        account::create_account_for_test(player1_addr);
+        account::create_account_for_test(player2_addr);
+        features::change_feature_flags(
+            aptos_framework,
+            vector[
+                features::get_auids(),
+                features::get_module_event_feature(),
+            ],
+            vector[],
+        );
     }
 
     // Useful for tests to move pieces wherever you want with no validation.
@@ -440,22 +457,20 @@ module addr::chess {
         abort 0
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_find_king(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_find_king(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
 
-        let (x, y) = find_king(&game.board, WHITE);
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        let (x, y) = find_king(&game_.board, WHITE);
         assert!(x == 4, 1);
         assert!(y == 0, 2);
 
-        let (x, y) = find_king(&game.board, BLACK);
+        let (x, y) = find_king(&game_.board, BLACK);
         assert!(x == 4, 3);
         assert!(y == 7, 4);
     }
@@ -504,42 +519,40 @@ module addr::chess {
         is_position_in_check(board, king_x, king_y, color)
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_king_in_check(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_king_in_check(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow_mut(&mut game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         // Move the white king to 3,3 and verify it is not in check.
-        move_piece(&mut game.board, 4, 0, 3, 3);
-        assert!(!is_king_in_check(&game.board, WHITE), 1);
+        move_piece(&mut game_.board, 4, 0, 3, 3);
+        assert!(!is_king_in_check(&game_.board, WHITE), 1);
 
         // Move the black knight to 2,5 and verify the white king is in check.
-        move_piece(&mut game.board, 1, 7, 2, 5);
-        assert!(is_king_in_check(&game.board, WHITE), 2);
+        move_piece(&mut game_.board, 1, 7, 2, 5);
+        assert!(is_king_in_check(&game_.board, WHITE), 2);
 
         // Move the white king to 0,5 and verify it is in check from the pawn at 1,6.
-        move_piece(&mut game.board, 3, 3, 0, 5);
-        assert!(is_king_in_check(&game.board, WHITE), 3);
+        move_piece(&mut game_.board, 3, 3, 0, 5);
+        assert!(is_king_in_check(&game_.board, WHITE), 3);
 
         // Move the white king to 5,4 and verify it is not in check.
-        move_piece(&mut game.board, 0, 5, 5, 4);
-        assert!(!is_king_in_check(&game.board, WHITE), 4);
+        move_piece(&mut game_.board, 0, 5, 5, 4);
+        assert!(!is_king_in_check(&game_.board, WHITE), 4);
 
         // Move the black pawn at 3,6 to 3,5 and verify that the white king is now in
         // check from the bishop (discovered check).
-        move_piece(&mut game.board, 3, 6, 3, 5);
-        assert!(is_king_in_check(&game.board, WHITE), 5);
+        move_piece(&mut game_.board, 3, 6, 3, 5);
+        assert!(is_king_in_check(&game_.board, WHITE), 5);
 
         // Move the white queen to 4,5 to block the check and confirm the white king
         // is no longer in check.
-        move_piece(&mut game.board, 3, 0, 4, 5);
-        assert!(!is_king_in_check(&game.board, WHITE), 6);
+        move_piece(&mut game_.board, 3, 0, 4, 5);
+        assert!(!is_king_in_check(&game_.board, WHITE), 6);
     }
 
     // TODO: Use the UP DOWN LEFT RIGHT constants
@@ -607,36 +620,34 @@ module addr::chess {
         return false
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_king_has_valid_moves(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_king_has_valid_moves(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow_mut(&mut game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         // Place the white king at the center of the board.
-        move_piece(&mut game.board, 4, 0, 4, 4);
+        move_piece(&mut game_.board, 4, 0, 4, 4);
 
         // Assert the white king has valid moves in this new position.
-        assert!(king_has_valid_moves(&game.board, 4, 4, WHITE), 1);
+        assert!(king_has_valid_moves(&game_.board, 4, 4, WHITE), 1);
 
         // Move the two black rooks and queen into rows 3, 4, and 5.
-        move_piece(&mut game.board, 0, 7, 0, 3);
-        move_piece(&mut game.board, 3, 7, 0, 4);
-        move_piece(&mut game.board, 7, 7, 0, 5);
+        move_piece(&mut game_.board, 0, 7, 0, 3);
+        move_piece(&mut game_.board, 3, 7, 0, 4);
+        move_piece(&mut game_.board, 7, 7, 0, 5);
 
         // Assert that the king has no valid moves now.
-        assert!(!king_has_valid_moves(&game.board, 4, 4, WHITE), 2);
+        assert!(!king_has_valid_moves(&game_.board, 4, 4, WHITE), 2);
 
         // Move the rook on row 3 back to where it was.
-        move_piece(&mut game.board, 0, 3, 0, 7);
+        move_piece(&mut game_.board, 0, 3, 0, 7);
 
         // Assert that the king now has an escape.
-        assert!(king_has_valid_moves(&game.board, 4, 4, WHITE), 2);
+        assert!(king_has_valid_moves(&game_.board, 4, 4, WHITE), 2);
     }
 
     // At this point we should have already asserted that the starting position
@@ -680,16 +691,14 @@ module addr::chess {
         return true
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_valid_rook_move(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_rook_move(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let color = WHITE;
 
@@ -699,24 +708,24 @@ module addr::chess {
 
         // A rook in the starting position in 0,0 should not be able to move right
         // since a friendly bishop is in the way.
-        assert!(!is_valid_rook_move(&game.board, 0, 0, 1, 0, color), 1);
+        assert!(!is_valid_rook_move(&game_.board, 0, 0, 1, 0, color), 1);
 
         // A rook at 0,2 should not be able to take the enemy rook at 0,7 because
         // a pawn is in the way at 0,6.
-        assert!(!is_valid_rook_move(&game.board, 0, 2, 0, 7, color), 2);
+        assert!(!is_valid_rook_move(&game_.board, 0, 2, 0, 7, color), 2);
 
         // A rook at 0,2 should be able to take the enemy pawn at 0,6 because
         // there is nothing in the way.
-        assert!(is_valid_rook_move(&game.board, 0, 2, 0, 6, color), 3);
+        assert!(is_valid_rook_move(&game_.board, 0, 2, 0, 6, color), 3);
 
         // A rook at 0,2 should not be able to take its own pawn at 0,1.
-        assert!(!is_valid_rook_move(&game.board, 0, 2, 0, 1, color), 3);
+        assert!(!is_valid_rook_move(&game_.board, 0, 2, 0, 1, color), 3);
 
         // A rook at 0,4 should be able to move to 7,4 because nothing is in the way.
-        assert!(is_valid_rook_move(&game.board, 0, 4, 7, 4, color), 4);
+        assert!(is_valid_rook_move(&game_.board, 0, 4, 7, 4, color), 4);
 
         // A rook should not be able to move diagonally.
-        assert!(!is_valid_rook_move(&game.board, 3, 3, 4, 4, color), 5);
+        assert!(!is_valid_rook_move(&game_.board, 3, 3, 4, 4, color), 5);
     }
 
     fun is_valid_knight_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8): bool {
@@ -738,36 +747,34 @@ module addr::chess {
         return true
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_valid_knight_move(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_knight_move(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let color = WHITE;
 
         // Test 1: Knight should be able to move in L-shape (2 squares in one axis and 1 square in the other)
-        assert!(is_valid_knight_move(&game.board, 1, 0, 2, 2, color), 1);
+        assert!(is_valid_knight_move(&game_.board, 1, 0, 2, 2, color), 1);
 
         // Test 2: Knight should be able to move in L-shape (1 square in one axis and 2 squares in the other)
-        assert!(is_valid_knight_move(&game.board, 2, 2, 4, 3, color), 2);
+        assert!(is_valid_knight_move(&game_.board, 2, 2, 4, 3, color), 2);
 
         // Test 3: Knight should be able to capture an opponent's piece (the enemy rook at 0,7)
-        assert!(is_valid_knight_move(&game.board, 1, 5, 0, 7, color), 3);
+        assert!(is_valid_knight_move(&game_.board, 1, 5, 0, 7, color), 3);
 
         // Test 4: Knight should not be able to capture a friendly piece
-        assert!(!is_valid_knight_move(&game.board, 1, 0, 3, 1, color), 4);
+        assert!(!is_valid_knight_move(&game_.board, 1, 0, 3, 1, color), 4);
 
         // Test 5: Knight should not be able to move in a straight line
-        assert!(!is_valid_knight_move(&game.board, 3, 2, 3, 4, color), 5);
+        assert!(!is_valid_knight_move(&game_.board, 3, 2, 3, 4, color), 5);
 
         // Test 6: Knight should not be able to move in a diagonal line
-        assert!(!is_valid_knight_move(&game.board, 3, 2, 4, 3, color), 6);
+        assert!(!is_valid_knight_move(&game_.board, 3, 2, 4, 3, color), 6);
     }
 
     fun is_valid_bishop_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8): bool {
@@ -814,33 +821,31 @@ module addr::chess {
         return true
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_valid_bishop_move(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_bishop_move(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let color = WHITE;
 
         // A bishop at 2,0 should not be able to move to 4,2, because its own pawn is in the way.
-        assert!(!is_valid_bishop_move(&game.board, 2, 0, 4, 2, color), 1);
+        assert!(!is_valid_bishop_move(&game_.board, 2, 0, 4, 2, color), 1);
 
         // A bishop at 3,3 should not be able to move to 3,5, because it's not a diagonal move.
-        assert!(!is_valid_bishop_move(&game.board, 3, 3, 3, 5, color), 2);
+        assert!(!is_valid_bishop_move(&game_.board, 3, 3, 3, 5, color), 2);
 
         // A bishop at 2,2 should be able to move to 5,5, because nothing is in the way.
-        assert!(is_valid_bishop_move(&game.board, 2, 2, 5, 5, color), 3);
+        assert!(is_valid_bishop_move(&game_.board, 2, 2, 5, 5, color), 3);
 
         // A bishop at 3,3 should be able to capture the enemy pawn at 6,6.
-        assert!(is_valid_bishop_move(&game.board, 3, 3, 6, 6, color), 4);
+        assert!(is_valid_bishop_move(&game_.board, 3, 3, 6, 6, color), 4);
 
         // A bishop at 3,3 should not be able to capture its own pawn at 5,1.
-        assert!(!is_valid_bishop_move(&game.board, 3, 3, 5, 1, color), 5);
+        assert!(!is_valid_bishop_move(&game_.board, 3, 3, 5, 1, color), 5);
     }
 
     // This just checks that the king is allowed to move into the square based on its
@@ -869,33 +874,31 @@ module addr::chess {
         return true
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_valid_king_move_basic(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_king_move_basic(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let color = WHITE;
 
         // A king at 4,0 should not be able to move to 4,2, because it's more than one square away.
-        assert!(!is_valid_king_move_basic(&game.board, 4, 0, 4, 2, color), 1);
+        assert!(!is_valid_king_move_basic(&game_.board, 4, 0, 4, 2, color), 1);
 
         // A king at 4,0 should not be able to move to 6,0, because it's more than one square away.
-        assert!(!is_valid_king_move_basic(&game.board, 4, 0, 6, 0, color), 2);
+        assert!(!is_valid_king_move_basic(&game_.board, 4, 0, 6, 0, color), 2);
 
         // A king at 3,3 should be able to move to 4,4 because it's one square away and no piece is blocking the way.
-        assert!(is_valid_king_move_basic(&game.board, 3, 3, 4, 4, color), 3);
+        assert!(is_valid_king_move_basic(&game_.board, 3, 3, 4, 4, color), 3);
 
         // A king at 0,7 should be able to capture the enemy knight at 1,7.
-        assert!(is_valid_king_move_basic(&game.board, 0, 7, 1, 7, color), 4);
+        assert!(is_valid_king_move_basic(&game_.board, 0, 7, 1, 7, color), 4);
 
         // A king at 4,0 should not be able to capture its own queen at 3,0.
-        assert!(!is_valid_king_move_basic(&game.board, 4, 0, 3, 0, color), 5);
+        assert!(!is_valid_king_move_basic(&game_.board, 4, 0, 3, 0, color), 5);
     }
 
     // todo
@@ -994,100 +997,98 @@ module addr::chess {
         return true
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_valid_king_move_castle(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_king_move_castle(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow_mut(&mut game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let color = WHITE;
 
         // The king should not be able to castle in either direction at the start.
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 6, 0, color, &game.white_piece_status), 1);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 1);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 6, 0, color, &game_.white_piece_status), 1);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 1);
 
         // Remove the king side bishop and knight. Confirm that the king can now castle
         // king side.
-        delete_piece(&mut game.board, 5, 0);
-        delete_piece(&mut game.board, 6, 0);
-        assert!(is_valid_king_move_castle(&game.board, 4, 0, 6, 0, color, &game.white_piece_status), 2);
+        delete_piece(&mut game_.board, 5, 0);
+        delete_piece(&mut game_.board, 6, 0);
+        assert!(is_valid_king_move_castle(&game_.board, 4, 0, 6, 0, color, &game_.white_piece_status), 2);
 
         // Assert that the king still can't castle queen side.
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 3);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 3);
 
         // Remove the queen side knight. Confirm that the king still can't castle queen
         // side.
-        delete_piece(&mut game.board, 1, 0);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 4);
+        delete_piece(&mut game_.board, 1, 0);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 4);
 
         // Remove the queen. Confirm that the king still can't castle queen side.
-        delete_piece(&mut game.board, 3, 0);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 5);
+        delete_piece(&mut game_.board, 3, 0);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 5);
 
         // Remove the queen side bishop. Confirm that the king can now castle queen
         // side.
-        delete_piece(&mut game.board, 2, 0);
-        assert!(is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 6);
+        delete_piece(&mut game_.board, 2, 0);
+        assert!(is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 6);
 
         // Remove the king side rook. Confirm that the king can no longer castle
         // king side.
-        delete_piece(&mut game.board, 7, 0);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 6, 0, color, &game.white_piece_status), 7);
+        delete_piece(&mut game_.board, 7, 0);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 6, 0, color, &game_.white_piece_status), 7);
 
         // Mark the queen side rook has having moved. Confirm that the king can no
         // longer castle queen side.
-        game.white_piece_status.queen_side_rook_has_moved = true;
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 8);
+        game_.white_piece_status.queen_side_rook_has_moved = true;
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 8);
 
         // Mark it as not having moved again but mark the king as having moved. Confirm
         // that the king can no longer castle.
-        game.white_piece_status.queen_side_rook_has_moved = false;
-        game.white_piece_status.king_has_moved = true;
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 9);
+        game_.white_piece_status.queen_side_rook_has_moved = false;
+        game_.white_piece_status.king_has_moved = true;
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 9);
 
         // Mark the king as not having moved.
-        game.white_piece_status.king_has_moved = false;
+        game_.white_piece_status.king_has_moved = false;
 
         // Remove all the queen side pawns.
-        delete_piece(&mut game.board, 0, 1);
-        delete_piece(&mut game.board, 1, 1);
-        delete_piece(&mut game.board, 2, 1);
-        delete_piece(&mut game.board, 3, 1);
-        delete_piece(&mut game.board, 4, 1);
+        delete_piece(&mut game_.board, 0, 1);
+        delete_piece(&mut game_.board, 1, 1);
+        delete_piece(&mut game_.board, 2, 1);
+        delete_piece(&mut game_.board, 3, 1);
+        delete_piece(&mut game_.board, 4, 1);
 
         // Place a black rook such that it watches the column with the rook. Confirm
         // that queen side castling is still valid.
-        move_piece(&mut game.board, 7, 7, 0, 3);
-        assert!(is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 10);
+        move_piece(&mut game_.board, 7, 7, 0, 3);
+        assert!(is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 10);
 
         // Move the black rook to watch the column that had the knight. Confirm that
         // queen side castling is still valid.
-        move_piece(&mut game.board, 0, 3, 1, 3);
-        assert!(is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 11);
+        move_piece(&mut game_.board, 0, 3, 1, 3);
+        assert!(is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 11);
 
         // Move the black rook to watch the column that had the bishop. Confirm that
         // queen side castling is no longer valid.
-        move_piece(&mut game.board, 1, 3, 2, 3);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 11);
+        move_piece(&mut game_.board, 1, 3, 2, 3);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 11);
 
         // Move the black rook to watch the column that had the queen. Confirm that
         // queen side castling is no longer valid.
-        move_piece(&mut game.board, 2, 3, 3, 3);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 11);
+        move_piece(&mut game_.board, 2, 3, 3, 3);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 11);
 
         // Move the black rook to watch the column that has the king. Confirm that
         // queen side castling is no longer valid.
-        move_piece(&mut game.board, 3, 3, 4, 3);
-        assert!(!is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 11);
+        move_piece(&mut game_.board, 3, 3, 4, 3);
+        assert!(!is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 11);
 
         // Remove the black rook. Confirm that queen side castling is now valid again.
-        delete_piece(&mut game.board, 4, 3);
-        assert!(is_valid_king_move_castle(&game.board, 4, 0, 2, 0, color, &game.white_piece_status), 12);
+        delete_piece(&mut game_.board, 4, 3);
+        assert!(is_valid_king_move_castle(&game_.board, 4, 0, 2, 0, color, &game_.white_piece_status), 12);
     }
 
     fun is_valid_queen_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8): bool {
@@ -1152,58 +1153,56 @@ module addr::chess {
         return false
     }
 
-    #[test(player1 = @0x123, player2 = @0x321)]
-    fun test_is_valid_pawn_move(player1: &signer, player2: &signer) acquires GameStore {
-        // This is necessary because the GameStore contains event handles.
-        account::create_account_for_test(signer::address_of(player1));
-
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_pawn_move(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
         let player2_addr = signer::address_of(player2);
-        create_game(player1, player2_addr);
-        let game_store = borrow_global_mut<GameStore>(player1_addr);
-        let game = table::borrow(&game_store.games, (game_store.next_index - 1));
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         // A white pawn at 1,1 should be able to move to 1,2.
-        assert!(is_valid_pawn_move(&game.board, 1, 1, 1, 2, WHITE), 1);
+        assert!(is_valid_pawn_move(&game_.board, 1, 1, 1, 2, WHITE), 1);
 
         // A white pawn at 1,1 should be able to move to 1,3.
-        assert!(is_valid_pawn_move(&game.board, 1, 1, 1, 3, WHITE), 2);
+        assert!(is_valid_pawn_move(&game_.board, 1, 1, 1, 3, WHITE), 2);
 
         // A white pawn at 1,2 should not be able to move to 1,4.
-        assert!(!is_valid_pawn_move(&game.board, 1, 2, 1, 4, WHITE), 2);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 2, 1, 4, WHITE), 2);
 
         // A white pawn at 1,1 should not be able to move to 1,4.
-        assert!(!is_valid_pawn_move(&game.board, 1, 1, 1, 4, WHITE), 3);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 1, 1, 4, WHITE), 3);
 
         // A white pawn at 1,1 should not be able to move to 2,2.
-        assert!(!is_valid_pawn_move(&game.board, 1, 1, 2, 2, WHITE), 4);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 1, 2, 2, WHITE), 4);
 
         // A white pawn at 4,4 should not be able to move backwards to 4,3.
-        assert!(!is_valid_pawn_move(&game.board, 4, 4, 4, 3, WHITE), 5);
+        assert!(!is_valid_pawn_move(&game_.board, 4, 4, 4, 3, WHITE), 5);
 
         // A black pawn at 1,6 should be able to move to 1,5.
-        assert!(is_valid_pawn_move(&game.board, 1, 6, 1, 5, BLACK), 6);
+        assert!(is_valid_pawn_move(&game_.board, 1, 6, 1, 5, BLACK), 6);
 
         // A black pawn at 1,6 should be able to move to 1,4.
-        assert!(is_valid_pawn_move(&game.board, 1, 6, 1, 4, BLACK), 7);
+        assert!(is_valid_pawn_move(&game_.board, 1, 6, 1, 4, BLACK), 7);
 
         // A black pawn at 1,6 should not be able to move to 1,3.
-        assert!(!is_valid_pawn_move(&game.board, 1, 6, 1, 3, BLACK), 8);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 6, 1, 3, BLACK), 8);
 
         // A black pawn at 1,6 should not be able to move to 2,5.
-        assert!(!is_valid_pawn_move(&game.board, 1, 6, 2, 5, BLACK), 9);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 6, 2, 5, BLACK), 9);
 
         // A black pawn at 4,4 should not be able to move backwards to 4,5.
-        assert!(!is_valid_pawn_move(&game.board, 4, 4, 4, 5, BLACK), 10);
+        assert!(!is_valid_pawn_move(&game_.board, 4, 4, 4, 5, BLACK), 10);
 
         // A white pawn at 1,5 should be able to capture a black pawn at 0,6.
-        assert!(is_valid_pawn_move(&game.board, 1, 5, 0, 6, WHITE), 11);
+        assert!(is_valid_pawn_move(&game_.board, 1, 5, 0, 6, WHITE), 11);
 
         // A black pawn at 0,7 should not be able to capture a black pawn at 1,6.
-        assert!(!is_valid_pawn_move(&game.board, 0, 7, 1, 6, BLACK), 12);
+        assert!(!is_valid_pawn_move(&game_.board, 0, 7, 1, 6, BLACK), 12);
 
         // A black pawn at 0,7 should not be able to move into a space with its own piece at 0,6.
-        assert!(!is_valid_pawn_move(&game.board, 0, 7, 0, 6, BLACK), 12);
+        assert!(!is_valid_pawn_move(&game_.board, 0, 7, 0, 6, BLACK), 12);
 
         // TODO: Test pawn promotion works.
     }

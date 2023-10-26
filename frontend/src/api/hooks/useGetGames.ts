@@ -11,17 +11,19 @@ export type useGetAccountResourceResponse = {
 };
 
 // Return information about the games that the player is a part of.
+// TODO: Use indexer for this.
 export function useGetGames(
-  playerAddress: string,
+  address: string,
   options: { enabled?: boolean; refetchInterval?: number } = {}
 ): useGetAccountResourceResponse {
   const [state, _setState] = useGlobalState();
 
+  /*
   const accountResourcesResult = useQuery<Types.MoveResource, ResponseError>(
     ["accountResource", { address }, state.network_value],
     () =>
       getAccountResource(
-        { address, resourceType: resource },
+        { address: playerAddress, resourceType: resource },
         state.network_value
       ),
     {
@@ -36,4 +38,11 @@ export function useGetGames(
   const accountResource = accountResourcesResult.data;
 
   return { accountResource, isLoading, error };
+  */
+
+  return {
+    accountResource: undefined,
+    isLoading: false,
+    error: null,
+  }
 }

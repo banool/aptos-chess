@@ -5,14 +5,14 @@ export const MODULE_ADDRESS = {
   mainnet: null,
   testnet: "0x81e2e2499407693c81fe65c86405ca70df529438339d9da7a6fc2520142b591e",
   devnet: "0x81e2e2499407693c81fe65c86405ca70df529438339d9da7a6fc2520142b591e",
-  local: null,
+  local: "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30",
 };
 
 export const MODULE_NAME = {
   mainnet: null,
-  testnet: "chess03",
-  devnet: "chess03",
-  local: null,
+  testnet: "chess",
+  devnet: "chess",
+  local: "chess",
 };
 
 /**
@@ -22,14 +22,14 @@ export const networks = {
   mainnet: "https://fullnode.mainnet.aptoslabs.com/",
   testnet: "https://fullnode.testnet.aptoslabs.com",
   devnet: "https://fullnode.devnet.aptoslabs.com/",
-  local: "http://localhost:8080",
+  local: "http://127.0.0.1:8080",
 };
 
 export const indexerNetworks = {
   mainnet: "https://indexer.mainnet.aptoslabs.com/v1/graphql",
   testnet: "https://indexer-testnet.staging.gcp.aptosdev.com/v1/graphql",
   devnet: "https://indexer-devnet.staging.gcp.aptosdev.com/v1/graphql",
-  local: "http://localhost:todo",
+  local: "http://127.0.0.1:8090/v1/graphql",
 };
 
 export type NetworkName = keyof typeof networks;
@@ -42,7 +42,7 @@ for (const key of Object.keys(networks)) {
   }
 }
 
-export const defaultNetworkName: NetworkName = "mainnet" as const;
+export const defaultNetworkName: NetworkName = "local" as const;
 
 if (!(defaultNetworkName in networks)) {
   throw `defaultNetworkName '${defaultNetworkName}' not in Networks!`;

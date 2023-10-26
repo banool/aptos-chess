@@ -4,7 +4,6 @@ import { PetraWallet } from "petra-plugin-wallet-adapter";
 import { PontemWallet } from "@pontem/wallet-adapter-plugin";
 import { RiseWallet } from "@rise-wallet/wallet-adapter";
 import { TrustWallet } from "@trustwallet/aptos-wallet-adapter";
-import { MSafeWalletAdapter } from "msafe-plugin-wallet-adapter";
 import { WelldoneWallet } from "@welldone-studio/aptos-wallet-adapter";
 import {
   AptosWalletAdapterProvider,
@@ -24,7 +23,6 @@ const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
       bloctoAppId: "6d85f56e-5f2e-46cd-b5f2-5cf9695b4d46",
     }),
     new MartianWallet(),
-    new MSafeWalletAdapter(),
     new PetraWallet(),
     new PontemWallet(),
     new RiseWallet(),
