@@ -9,7 +9,6 @@
 // - Add support for various time settings
 //   (full game limits, per move limits, regaining time on move, etc)
 // - Add support for draw by time
-// - Add support for resigning
 // - Any TODOs down in the comments.
 // - Add support for custom extensions. We could define a trait that has a bunch of
 //   hook functions that the custom extension can implement, e.g. relating to the
@@ -91,6 +90,8 @@ module addr::chess {
         black_piece_status: PieceStatus,
         en_passant_target: Option<EnPassantTarget>,
         game_status: u8,
+        player_resigned: bool,
+        draw_accepted: bool,
     }
 
     struct PieceStatus has copy, drop, store {
@@ -149,6 +150,8 @@ module addr::chess {
             black_piece_status: piece_status,
             en_passant_target: option::none(),
             game_status: ACTIVE,
+            player_resigned: false,
+            draw_accepted: false,
         };
 
         let constructor_ref = object::create_object(player1_addr);
@@ -227,7 +230,6 @@ module addr::chess {
     // Make a move in an active game.
     public entry fun make_move(
         player: &signer,
-        // This is the index for the game in the player's GameStore.
         game: Object<Game>,
         src_x: u8,
         src_y: u8,
@@ -241,6 +243,9 @@ module addr::chess {
         let player_addr = signer::address_of(player);
 
         let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        // Assert the game is not finished.
+        assert!(game_.game_status == ACTIVE, error::invalid_state(E_GAME_FINISHED));
 
         // For now player1 is always white, so if the player trying to make the move is
         // player1 then it must be white's turn.
@@ -264,9 +269,6 @@ module addr::chess {
             enemy_color = WHITE;
             piece_status = game_.black_piece_status;
         };
-
-        // Assert the game is not finished.
-        assert!(game_.game_status == ACTIVE, error::invalid_state(E_GAME_FINISHED));
 
         // Assert the move passes some basic validity checks.
         assert!(is_valid_basic(&game_.board, src_x, src_y, dest_x, dest_y, color), error::invalid_argument(E_INVALID_MOVE));
@@ -323,6 +325,25 @@ module addr::chess {
 
         // Update whose turn it is.
         game_.is_white_turn = !game_.is_white_turn;
+    }
+
+    public entry fun resign(
+        player: &signer,
+        game: Object<Game>,
+    ) acquires Game {
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        let player_addr = signer::address_of(player);
+
+        game_.player_resigned = true;
+
+        let player_color = determine_color(game_, &player_addr);
+
+        if (player_color == WHITE) {
+            game_.game_status = BLACK_WON;
+        } else {
+            game_.game_status = WHITE_WON;
+        }
     }
 
     #[test_only]
@@ -1222,5 +1243,15 @@ module addr::chess {
 
     fun borrow_piece_mut(board: &mut Board, x: u8, y: u8): &mut Option<Piece> {
         return vector::borrow_mut(vector::borrow_mut(&mut board.board, (y as u64)), (x as u64))
+    }
+
+    fun determine_color(game_: &Game, player_addr: &address): u8 {
+        if (&game_.player1 == player_addr) {
+            WHITE
+        } else if (&game_.player2 == player_addr) {
+            BLACK
+        } else {
+            abort(E_PLAYER_NOT_IN_GAME)
+        }
     }
 }
