@@ -5,7 +5,6 @@
 // - Add support for en passant
 // - Add support for draw by repetition
 // - Add support for draw by insufficient material
-// - Add support for draw by agreement
 // - Add support for various time settings
 //   (full game limits, per move limits, regaining time on move, etc)
 // - Add support for draw by time
@@ -13,6 +12,8 @@
 // - Add support for custom extensions. We could define a trait that has a bunch of
 //   hook functions that the custom extension can implement, e.g. relating to the
 //   starting position of pieces, move validity, etc.
+
+// todo, check out if there is some kind of ascii chess frontend, that'd be neat
 
 module addr::chess {
     use std::error;
@@ -45,6 +46,12 @@ module addr::chess {
 
     /// You tried to promote to an invalid piece type.
     const E_INVALID_PROMOTION_INTENT: u64 = 5;
+
+    /// You tried to accept a draw but the other player didn't offer one.
+    const E_NO_DRAW_OFFERED: u64 = 6;
+
+    /// You tried to accept a draw but you're the one who offered it.
+    const E_CANNOT_ACCEPT_OWN_DRAW_OFFER: u64 = 7;
 
     const ROOK: u8 = 1;
     const KNIGHT: u8 = 2;
@@ -91,7 +98,7 @@ module addr::chess {
         en_passant_target: Option<EnPassantTarget>,
         game_status: u8,
         player_resigned: bool,
-        draw_accepted: bool,
+        draw_offered_by: Option<u8>,
     }
 
     struct PieceStatus has copy, drop, store {
@@ -151,7 +158,7 @@ module addr::chess {
             en_passant_target: option::none(),
             game_status: ACTIVE,
             player_resigned: false,
-            draw_accepted: false,
+            draw_offered_by: option::none(),
         };
 
         let constructor_ref = object::create_object(player1_addr);
@@ -325,8 +332,13 @@ module addr::chess {
 
         // Update whose turn it is.
         game_.is_white_turn = !game_.is_white_turn;
+
+        // If anyone offered a draw, consider making a move either a retraction or a
+        // rejection of that offer.
+        game_.draw_offered_by = option::none();
     }
 
+    // todo, verify rules for when you're allowed to resign
     public entry fun resign(
         player: &signer,
         game: Object<Game>,
@@ -344,6 +356,39 @@ module addr::chess {
         } else {
             game_.game_status = WHITE_WON;
         }
+    }
+
+    // todo, verify rules for when you're allowed to offer and accept a draw
+    public entry fun offer_draw(
+        player: &signer,
+        game: Object<Game>,
+    ) acquires Game {
+        // TODO: This is incomplete
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        let player_addr = signer::address_of(player);
+
+        let player_color = determine_color(game_, &player_addr);
+
+        game_.draw_offered_by = option::some(player_color);
+    }
+
+    public entry fun accept_draw(
+        player: &signer,
+        game: Object<Game>,
+    ) acquires Game {
+        // TODO: This is incomplete
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        let player_addr = signer::address_of(player);
+
+        let player_color = determine_color(game_, &player_addr);
+
+        // Make sure the other player offered a draw.
+        assert!(option::is_some(&game_.draw_offered_by), error::invalid_state(E_NO_DRAW_OFFERED));
+        assert!(option::borrow(&game_.draw_offered_by) != &player_color, error::invalid_state(E_CANNOT_ACCEPT_OWN_DRAW_OFFER));
+
+        game_.game_status = DRAW;
     }
 
     #[test_only]
