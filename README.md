@@ -24,27 +24,20 @@ cd move
 aptos move publish --addr
 ```
 
-queries:
-```
-query MyQuery($spec: jsonb) {
-  events(where: {type: {_eq: "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30::chess::GameCreatedEvent"}, data: {_contains: $spec}}) {
-    data
-  }
-}
-```
-```
-# Games I created
+
+
+#Query like this:
+
 {
-  "spec": {
+  "moduleId": "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30::chess::GameCreatedEvent",
+  "creatorSpec": {
     "creator_address": "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30"
-  }
-}
-```
-```
-# Games I was invited to
-{
-  "spec": {
+  },
+  "opponentSpec": {
     "opponent_address": "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30"
   }
 }
-```
+"""
+
+## Notes
+Be careful about updating the GraphQL codegen deps because of this issue: https://github.com/dotansimha/graphql-code-generator/issues/9046.

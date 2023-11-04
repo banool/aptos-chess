@@ -4,7 +4,7 @@ const config: CodegenConfig = {
   overwrite: true,
   schema: "../move/schema.graphql",
   generates: {
-    "src/app/move/generated/types.ts": {
+    "src/codegen/move/generated/types.ts": {
       config: {
         emitLegacyCommonJSImports: false,
         namingConvention: "keep",
