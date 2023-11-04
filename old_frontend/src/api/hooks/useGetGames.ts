@@ -9,9 +9,11 @@ export type useGetAccountResourceResponse = {
   isLoading: boolean;
   error: ResponseError | null;
 };
-
+// TODO: Does the events table return older or newer first?z
 // Return information about the games that the player is a part of.
 // TODO: Use indexer for this.
+// TODO: Does the events table return older or newer first? can it be configured?
+// TODO: Use TS SDK v2 for this
 export function useGetGames(
   address: string,
   options: { enabled?: boolean; refetchInterval?: number } = {}

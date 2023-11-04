@@ -190,7 +190,7 @@ def kill_process_at_port(port: int):
             pid = line.split()[1]
     if pid:
         subprocess.run(["kill", pid])
-        print(f"[Local] Killed existing processor occupying port {port} with PID {pid}")
+        print(f"[Local] Killed existing process occupying port {port} with PID {pid}")
 
 
 if __name__ == "__main__":

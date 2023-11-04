@@ -59,7 +59,7 @@ export const MyChessboard = ({ objectAddress }: MyChessboardProps) => {
       return 0;
     }
     // TODO: Fix this
-    if (chessInstance.turn() == getPlayerColor()) {
+    if (chessInstance.turn() === getPlayerColor()) {
       return 0;
     }
 

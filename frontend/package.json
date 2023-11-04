@@ -2,75 +2,28 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@aptos-labs/wallet-adapter-ant-design": "^1.2.5",
-    "@aptos-labs/wallet-adapter-core": "^1.0.1",
-    "@aptos-labs/wallet-adapter-react": "^0.2.4",
-    "@blocto/aptos-wallet-adapter-plugin": "^0.2.5",
-    "@chakra-ui/react": "^2.8.1",
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
-    "@martianwallet/aptos-wallet-adapter": "^0.0.3",
-    "@pontem/wallet-adapter-plugin": "^0.2.0",
-    "@rise-wallet/wallet-adapter": "^0.1.2",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^14.5.1",
-    "@trustwallet/aptos-wallet-adapter": "^0.1.6",
-    "@types/jest": "^28.1.8",
-    "@types/node": "^12.20.55",
-    "@types/react": "^18.2.31",
-    "@types/react-dom": "^18.2.14",
-    "@welldone-studio/aptos-wallet-adapter": "^0.1.4",
-    "antd": "^5.10.2",
-    "aptos": "^1.20.0",
-    "chess.js": "^0.13.4",
-    "framer-motion": "^6.5.1",
-    "msafe-plugin-wallet-adapter": "^0.1.1",
-    "petra-plugin-wallet-adapter": "^0.3.0",
-    "react": "^18.2.0",
-    "react-chessboard": "^4.2.3",
-    "react-dom": "^18.2.0",
-    "react-icons": "^3.11.0",
-    "react-query": "^3.39.3",
-    "react-router-dom": "^6.17.0",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
-  },
-  "homepage": "./",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
-    "fmt": "prettier --write 'src/**/*.(ts|tsx)'"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
-  "eslintConfig": {
-    "extends": "react-app",
-    "rules": {
-      "@typescript-eslint/no-unused-vars": "off",
-      "no-throw-literal": "off",
-      "no-multi-str": "off",
-      "no-empty-pattern": "off"
-    }
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "dependencies": {
+    "@nextui-org/react": "^2.2.1",
+    "framer-motion": "^10.16.4",
+    "next": "14.0.1",
+    "react": "^18",
+    "react-dom": "^18"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^5.17.0",
-    "@types/chess.js": "0.13.4",
-    "@types/testing-library__jest-dom": "^5.14.9",
-    "prettier": "^2.8.8"
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8",
+    "eslint-config-next": "14.0.1",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "typescript": "^5"
   }
 }
