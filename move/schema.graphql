@@ -1,0 +1,1600 @@
+type ACL {
+	list: [Address!]!
+}
+
+type AUID {
+	unique_address: Address!
+}
+
+type Account {
+	authentication_key: [U8!]!
+	sequence_number: U64!
+	guid_creation_num: U64!
+	coin_register_events: EventHandle!
+	key_rotation_events: EventHandle!
+	rotation_capability_offer: CapabilityOffer!
+	signer_capability_offer: CapabilityOffer!
+}
+
+type AccountMap {
+	account_address: Address!
+	balance: U64!
+}
+
+type AddDistributionEvent {
+	operator: Address!
+	pool_address: Address!
+	amount: U64!
+}
+
+type AddOwnersEvent {
+	owners_added: [Address!]!
+}
+
+scalar Address
+
+type AdminStore {
+	vesting_contracts: [Address!]!
+	nonce: U64!
+	create_events: EventHandle!
+}
+
+type AdminWithdrawEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	amount: U64!
+}
+
+type AggrOrMultiSignature {
+	bytes: [U8!]!
+}
+
+type AggrPublicKeysWithPoP {
+	bytes: [U8!]!
+}
+
+type AggregatableCoin {
+	value: _0x1__aggregator__Aggregator!
+}
+
+type AggregatorFactory {
+	phantom_table: Table!
+}
+
+type AggregatorSnapshot {
+	value: Any!
+}
+
+type AllowedDep {
+	account: Address!
+	module_name: String!
+}
+
+type AllowedValidators {
+	accounts: [Address!]!
+}
+
+scalar Any
+
+type ApprovedExecutionHashes {
+	hashes: SimpleMap!
+}
+
+type AptosCoin {
+	dummy_field: Boolean!
+}
+
+type AptosCoinMintCapability {
+	mint_cap: MintCapability!
+}
+
+type BigVector {
+	buckets: TableWithLength!
+	end_index: U64!
+	bucket_size: U64!
+}
+
+type BitVector {
+	length: U64!
+	bit_field: [Boolean!]!
+}
+
+type BlockResource {
+	height: U64!
+	epoch_interval: U64!
+	new_block_events: EventHandle!
+	update_epoch_interval_events: EventHandle!
+}
+
+type Board {
+	board: [[Option!]!]!
+}
+
+
+type Box {
+	val: Any!
+}
+
+type BurnCapability {
+	dummy_field: Boolean!
+}
+
+type BurnRef {
+	metadata: Object!
+}
+
+type Cap {
+	root: Address!
+}
+
+type CapDelegateState {
+	root: Address!
+}
+
+type CapState {
+	delegates: [Address!]!
+}
+
+type Capabilities {
+	burn_cap: BurnCapability!
+	freeze_cap: FreezeCapability!
+	mint_cap: MintCapability!
+}
+
+type CapabilityOffer {
+	for: Option!
+}
+
+type ChainId {
+	id: U8!
+}
+
+type Ciphertext {
+	left: RistrettoPoint!
+	right: RistrettoPoint!
+}
+
+type Coin {
+	value: U64!
+}
+
+type CoinInfo {
+	name: String!
+	symbol: String!
+	decimals: U8!
+	supply: Option!
+}
+
+type CoinRegisterEvent {
+	type_info: TypeInfo!
+}
+
+type CoinStore {
+	coin: Coin!
+	frozen: Boolean!
+	deposit_events: EventHandle!
+	withdraw_events: EventHandle!
+}
+
+type CollectedFeesPerBlock {
+	amount: AggregatableCoin!
+	proposer: Option!
+	burn_percentage: U8!
+}
+
+type Commitment {
+	point: RistrettoPoint!
+}
+
+type CompressedCiphertext {
+	left: CompressedRistretto!
+	right: CompressedRistretto!
+}
+
+type CompressedPubkey {
+	point: CompressedRistretto!
+}
+
+type CompressedRistretto {
+	data: [U8!]!
+}
+
+type ConcurrentSupply {
+	current: _0x1__aggregator_v2__Aggregator!
+}
+
+type Configuration {
+	epoch: U64!
+	last_reconfiguration_time: U64!
+	events: EventHandle!
+}
+
+type Cons {
+	car: Any!
+	cdr: Any!
+}
+
+type ConsensusConfig {
+	config: [U8!]!
+}
+
+type ConstructorRef {
+	self: Address!
+	can_delete: Boolean!
+}
+
+type Container {
+	store: SimpleMap!
+}
+
+type CreateStakingContractEvent {
+	operator: Address!
+	voter: Address!
+	pool_address: Address!
+	principal: U64!
+	commission_percentage: U64!
+}
+
+type CreateTransactionEvent {
+	creator: Address!
+	sequence_number: U64!
+	transaction: MultisigTransaction!
+}
+
+type CreateVestingContractEvent {
+	operator: Address!
+	voter: Address!
+	grant_amount: U64!
+	withdrawal_address: Address!
+	vesting_contract_address: Address!
+	staking_pool_address: Address!
+	commission_percentage: U64!
+}
+
+type CurrentTimeMicroseconds {
+	microseconds: U64!
+}
+
+type DelegateVotingPowerEvent {
+	pool_address: Address!
+	delegator: Address!
+	voter: Address!
+}
+
+type DelegatedMintCapability {
+	to: Address!
+}
+
+type DelegatedVotes {
+	active_shares: U128!
+	pending_inactive_shares: U128!
+	active_shares_next_lockup: U128!
+	last_locked_until_secs: U64!
+}
+
+type DelegationPool {
+	active_shares: _0x1__pool_u64_unbound__Pool!
+	observed_lockup_cycle: ObservedLockupCycle!
+	inactive_shares: Table!
+	pending_withdrawals: Table!
+	stake_pool_signer_cap: SignerCapability!
+	total_coins_inactive: U64!
+	operator_commission_percentage: U64!
+	add_stake_events: EventHandle!
+	reactivate_stake_events: EventHandle!
+	unlock_stake_events: EventHandle!
+	withdraw_stake_events: EventHandle!
+	distribute_commission_events: EventHandle!
+}
+
+type DelegationPoolOwnership {
+	pool_address: Address!
+}
+
+type Delegations {
+	inner: [DelegatedMintCapability!]!
+}
+
+type DeleteRef {
+	self: Address!
+}
+
+type DeriveRef {
+	self: Address!
+}
+
+type DeriveRefPod {
+	metadata_derive_ref: DeriveRef!
+}
+
+type DirectCoinTransferConfigUpdatedEvent {
+	new_allow_direct_transfers: Boolean!
+}
+
+type DirectTransferConfig {
+	allow_arbitrary_coin_transfers: Boolean!
+	update_coin_transfer_events: EventHandle!
+}
+
+type DisableReconfiguration {
+	dummy_field: Boolean!
+}
+
+type DistributeCommission {
+	pool_address: Address!
+	operator: Address!
+	beneficiary: Address!
+	commission_active: U64!
+	commission_pending_inactive: U64!
+}
+
+type DistributeCommissionEvent {
+	pool_address: Address!
+	operator: Address!
+	commission_active: U64!
+	commission_pending_inactive: U64!
+}
+
+type DistributeRewardsEvent {
+	pool_address: Address!
+	rewards_amount: U64!
+}
+
+type ECDSARawPublicKey {
+	bytes: [U8!]!
+}
+
+type ECDSASignature {
+	bytes: [U8!]!
+}
+
+type EmployeeAccountMap {
+	accounts: [Address!]!
+	validator: ValidatorConfigurationWithCommission!
+	vesting_schedule_numerator: [U64!]!
+	vesting_schedule_denominator: U64!
+	beneficiary_resetter: Address!
+}
+
+type EnPassantTarget {
+	x: U8!
+	y: U8!
+}
+
+type Entry {
+	hash: U64!
+	key: Any!
+	value: Any!
+}
+
+type EventHandle {
+	counter: U64!
+	guid: GUID!
+}
+
+type ExecuteRejectedTransactionEvent {
+	sequence_number: U64!
+	num_rejections: U64!
+	executor: Address!
+}
+
+type ExecutionConfig {
+	config: [U8!]!
+}
+
+type ExecutionError {
+	abort_location: String!
+	error_type: String!
+	error_code: U64!
+}
+
+type ExtendRef {
+	self: Address!
+}
+
+type FakeCons {
+	car: Any!
+	cdr: Any!
+}
+
+type Features {
+	features: [U8!]!
+}
+
+type FeeStatement {
+	total_charge_gas_units: U64!
+	execution_gas_units: U64!
+	io_gas_units: U64!
+	storage_fee_octas: U64!
+	storage_fee_refund_octas: U64!
+}
+
+type FixedPoint32 {
+	value: U64!
+}
+
+type FixedPoint64 {
+	value: U128!
+}
+
+
+type FormatFq12LscLsb {
+	dummy_field: Boolean!
+}
+
+type FormatFrLsb {
+	dummy_field: Boolean!
+}
+
+type FormatFrMsb {
+	dummy_field: Boolean!
+}
+
+type FormatG1Compr {
+	dummy_field: Boolean!
+}
+
+type FormatG1Uncompr {
+	dummy_field: Boolean!
+}
+
+type FormatG2Compr {
+	dummy_field: Boolean!
+}
+
+type FormatG2Uncompr {
+	dummy_field: Boolean!
+}
+
+type FormatGt {
+	dummy_field: Boolean!
+}
+
+type Fq12 {
+	dummy_field: Boolean!
+}
+
+type Fr {
+	dummy_field: Boolean!
+}
+
+type FreezeCapability {
+	dummy_field: Boolean!
+}
+
+type FrozenEvent {
+	frozen: Boolean!
+}
+
+type FungibleAsset {
+	metadata: Object!
+	amount: U64!
+}
+
+type FungibleAssetEvents {
+	deposit_events: EventHandle!
+	withdraw_events: EventHandle!
+	frozen_events: EventHandle!
+}
+
+type FungibleStore {
+	metadata: Object!
+	balance: U64!
+	frozen: Boolean!
+}
+
+type G1 {
+	dummy_field: Boolean!
+}
+
+type G2 {
+	dummy_field: Boolean!
+}
+
+type GUID {
+	id: _0x1__guid__ID!
+}
+
+type Game {
+	player1: Address!
+	player2: Address!
+	board: Board!
+	is_white_turn: Boolean!
+	white_piece_status: PieceStatus!
+	black_piece_status: PieceStatus!
+	en_passant_target: Option!
+	game_status: U8!
+	player_resigned: Boolean!
+	draw_offered_by: Option!
+}
+
+type GameCreatedEvent {
+	creator_address: Address!
+	opponent_address: Address!
+	object_address: Address!
+}
+
+type GasCurve {
+	min_gas: U64!
+	max_gas: U64!
+	points: [Point!]!
+}
+
+type GasEntry {
+	key: String!
+	val: U64!
+}
+
+type GasParameter {
+	usage: Usage!
+}
+
+type GasSchedule {
+	entries: [GasEntry!]!
+}
+
+type GasScheduleV2 {
+	feature_version: U64!
+	entries: [GasEntry!]!
+}
+
+type GenesisEndMarker {
+	dummy_field: Boolean!
+}
+
+type GovernanceConfig {
+	min_voting_threshold: U128!
+	required_proposer_stake: U64!
+	voting_duration_secs: U64!
+}
+
+type GovernanceEvents {
+	create_proposal_events: EventHandle!
+	update_config_events: EventHandle!
+	vote_events: EventHandle!
+}
+
+type GovernanceProposal {
+	dummy_field: Boolean!
+}
+
+type GovernanceRecords {
+	votes: SmartTable!
+	votes_per_proposal: SmartTable!
+	vote_delegation: SmartTable!
+	delegated_votes: SmartTable!
+	vote_events: EventHandle!
+	create_proposal_events: EventHandle!
+	delegate_voting_power_events: EventHandle!
+}
+
+type GovernanceResponsbility {
+	signer_caps: SimpleMap!
+}
+
+type Gt {
+	dummy_field: Boolean!
+}
+
+type HashG1XmdSha256SswuRo {
+	dummy_field: Boolean!
+}
+
+type HashG2XmdSha256SswuRo {
+	dummy_field: Boolean!
+}
+
+
+type IncreaseLockupEvent {
+	pool_address: Address!
+	old_locked_until_secs: U64!
+	new_locked_until_secs: U64!
+}
+
+type IndividualValidatorPerformance {
+	successful_proposals: U64!
+	failed_proposals: U64!
+}
+
+
+type Integer {
+	value: U128!
+	limit: U128!
+}
+
+type JoinValidatorSetEvent {
+	pool_address: Address!
+}
+
+type KeyRotationEvent {
+	old_authentication_key: [U8!]!
+	new_authentication_key: [U8!]!
+}
+
+type LeaveValidatorSetEvent {
+	pool_address: Address!
+}
+
+type LinearCap {
+	root: Address!
+}
+
+type LinearTransferRef {
+	self: Address!
+	owner: Address!
+}
+
+type Metadata {
+	name: String!
+	symbol: String!
+	decimals: U8!
+	icon_uri: String!
+	project_uri: String!
+}
+
+type MetadataUpdatedEvent {
+	old_metadata: SimpleMap!
+	new_metadata: SimpleMap!
+}
+
+type MintCapStore {
+	mint_cap: MintCapability!
+}
+
+type MintCapability {
+	dummy_field: Boolean!
+}
+
+type MintRef {
+	metadata: Object!
+}
+
+type ModuleMetadata {
+	name: String!
+	source: [U8!]!
+	source_map: [U8!]!
+	extension: Option!
+}
+
+type MultisigAccount {
+	owners: [Address!]!
+	num_signatures_required: U64!
+	transactions: Table!
+	last_executed_sequence_number: U64!
+	next_sequence_number: U64!
+	signer_cap: Option!
+	metadata: SimpleMap!
+	add_owners_events: EventHandle!
+	remove_owners_events: EventHandle!
+	update_signature_required_events: EventHandle!
+	create_transaction_events: EventHandle!
+	vote_events: EventHandle!
+	execute_rejected_transaction_events: EventHandle!
+	execute_transaction_events: EventHandle!
+	transaction_execution_failed_events: EventHandle!
+	metadata_updated_events: EventHandle!
+}
+
+type MultisigAccountCreationMessage {
+	chain_id: U8!
+	account_address: Address!
+	sequence_number: U64!
+	owners: [Address!]!
+	num_signatures_required: U64!
+}
+
+type MultisigAccountCreationWithAuthKeyRevocationMessage {
+	chain_id: U8!
+	account_address: Address!
+	sequence_number: U64!
+	owners: [Address!]!
+	num_signatures_required: U64!
+}
+
+type MultisigTransaction {
+	payload: Option!
+	payload_hash: Option!
+	votes: SimpleMap!
+	creator: Address!
+	creation_time_secs: U64!
+}
+
+type NIL {
+	dummy_field: Boolean!
+}
+
+type NewBlockEvent {
+	hash: Address!
+	epoch: U64!
+	round: U64!
+	height: U64!
+	previous_block_votes_bitvec: [U8!]!
+	proposer: Address!
+	failed_proposer_indices: [U64!]!
+	time_microseconds: U64!
+}
+
+type NewEpochEvent {
+	epoch: U64!
+}
+
+type Object {
+	inner: Address!
+}
+
+type ObjectCore {
+	guid_creation_num: U64!
+	owner: Address!
+	allow_ungated_transfer: Boolean!
+	transfer_events: EventHandle!
+}
+
+type ObjectGroup {
+	dummy_field: Boolean!
+}
+
+type ObservedLockupCycle {
+	index: U64!
+}
+
+type Option {
+	vec: [Any!]!
+}
+
+type OptionalAggregator {
+	aggregator: Option!
+	integer: Option!
+}
+
+type OriginatingAddress {
+	address_map: Table!
+}
+
+type OwnerCapability {
+	pool_address: Address!
+}
+
+type PackageDep {
+	account: Address!
+	package_name: String!
+}
+
+type PackageMetadata {
+	name: String!
+	upgrade_policy: UpgradePolicy!
+	upgrade_number: U64!
+	source_digest: String!
+	manifest: [U8!]!
+	modules: [ModuleMetadata!]!
+	deps: [PackageDep!]!
+	extension: Option!
+}
+
+type PackageRegistry {
+	packages: [PackageMetadata!]!
+}
+
+type Piece {
+	color: U8!
+	piece_type: U8!
+}
+
+type PieceStatus {
+	queen_side_rook_has_moved: Boolean!
+	king_side_rook_has_moved: Boolean!
+	king_has_moved: Boolean!
+}
+
+type Point {
+	x: U64!
+	y: U64!
+}
+
+type ProofOfPossession {
+	bytes: [U8!]!
+}
+
+type Proposal {
+	proposer: Address!
+	execution_content: Option!
+	metadata: SimpleMap!
+	creation_time_secs: U64!
+	execution_hash: [U8!]!
+	min_vote_threshold: U128!
+	expiration_secs: U64!
+	early_resolution_vote_threshold: Option!
+	yes_votes: U128!
+	no_votes: U128!
+	is_resolved: Boolean!
+	resolution_time_secs: U64!
+}
+
+type PublicKey {
+	bytes: [U8!]!
+}
+
+type PublicKeyWithPoP {
+	bytes: [U8!]!
+}
+
+type RangeProof {
+	bytes: [U8!]!
+}
+
+type RecordKey {
+	stake_pool: Address!
+	proposal_id: U64!
+}
+
+type RegisterForumEvent {
+	hosting_account: Address!
+	proposal_type_info: TypeInfo!
+}
+
+type RegisterValidatorCandidateEvent {
+	pool_address: Address!
+}
+
+type RemoveOwnersEvent {
+	owners_removed: [Address!]!
+}
+
+type RequestCommissionEvent {
+	operator: Address!
+	pool_address: Address!
+	accumulated_rewards: U64!
+	commission_amount: U64!
+}
+
+type ResolveProposal {
+	proposal_id: U64!
+	yes_votes: U128!
+	no_votes: U128!
+	resolved_early: Boolean!
+}
+
+type Result {
+	inner: U8!
+}
+
+type RistrettoPoint {
+	handle: U64!
+}
+
+type RotateConsensusKeyEvent {
+	pool_address: Address!
+	old_consensus_pubkey: [U8!]!
+	new_consensus_pubkey: [U8!]!
+}
+
+type RotationCapability {
+	account: Address!
+}
+
+type RotationCapabilityOfferProofChallenge {
+	sequence_number: U64!
+	recipient_address: Address!
+}
+
+type RotationCapabilityOfferProofChallengeV2 {
+	chain_id: U8!
+	sequence_number: U64!
+	source_address: Address!
+	recipient_address: Address!
+}
+
+type RotationProofChallenge {
+	sequence_number: U64!
+	originator: Address!
+	current_auth_key: Address!
+	new_public_key: [U8!]!
+}
+
+type Scalar {
+	data: [U8!]!
+}
+
+type SetBeneficiaryEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	shareholder: Address!
+	old_beneficiary: Address!
+	new_beneficiary: Address!
+}
+
+type SetOperatorEvent {
+	pool_address: Address!
+	old_operator: Address!
+	new_operator: Address!
+}
+
+type SetVersionCapability {
+	dummy_field: Boolean!
+}
+
+type SignedMessage {
+	type_info: TypeInfo!
+	inner: Any!
+}
+
+type SignerCapability {
+	account: Address!
+}
+
+type SignerCapabilityOfferProofChallenge {
+	sequence_number: U64!
+	recipient_address: Address!
+}
+
+type SignerCapabilityOfferProofChallengeV2 {
+	sequence_number: U64!
+	source_address: Address!
+	recipient_address: Address!
+}
+
+type SimpleMap {
+	data: [_0x1__simple_map__Element!]!
+}
+
+type SmartTable {
+	buckets: TableWithLength!
+	num_buckets: U64!
+	level: U8!
+	size: U64!
+	split_load_threshold: U8!
+	target_bucket_size: U64!
+}
+
+type SmartVector {
+	inline_vec: [Any!]!
+	big_vec: Option!
+	inline_capacity: Option!
+	bucket_size: Option!
+}
+
+type StakePool {
+	active: Coin!
+	inactive: Coin!
+	pending_active: Coin!
+	pending_inactive: Coin!
+	locked_until_secs: U64!
+	operator_address: Address!
+	delegated_voter: Address!
+	initialize_validator_events: EventHandle!
+	set_operator_events: EventHandle!
+	add_stake_events: EventHandle!
+	reactivate_stake_events: EventHandle!
+	rotate_consensus_key_events: EventHandle!
+	update_network_and_fullnode_addresses_events: EventHandle!
+	increase_lockup_events: EventHandle!
+	join_validator_set_events: EventHandle!
+	distribute_rewards_events: EventHandle!
+	unlock_stake_events: EventHandle!
+	withdraw_stake_events: EventHandle!
+	leave_validator_set_events: EventHandle!
+}
+
+type StakingConfig {
+	minimum_stake: U64!
+	maximum_stake: U64!
+	recurring_lockup_duration_secs: U64!
+	allow_validator_set_change: Boolean!
+	rewards_rate: U64!
+	rewards_rate_denominator: U64!
+	voting_power_increase_limit: U64!
+}
+
+type StakingContract {
+	principal: U64!
+	pool_address: Address!
+	owner_cap: OwnerCapability!
+	commission_percentage: U64!
+	distribution_pool: _0x1__pool_u64__Pool!
+	signer_cap: SignerCapability!
+}
+
+type StakingGroupContainer {
+	dummy_field: Boolean!
+}
+
+type StakingGroupUpdateCommissionEvent {
+	update_commission_events: EventHandle!
+}
+
+type StakingInfo {
+	pool_address: Address!
+	operator: Address!
+	voter: Address!
+	commission_percentage: U64!
+}
+
+type StakingRewardsConfig {
+	rewards_rate: FixedPoint64!
+	min_rewards_rate: FixedPoint64!
+	rewards_rate_period_in_secs: U64!
+	last_rewards_rate_period_start_in_secs: U64!
+	rewards_rate_decrease_rate: FixedPoint64!
+}
+
+type StateStorageUsage {
+	epoch: U64!
+	usage: Usage!
+}
+
+type StorageGas {
+	per_item_read: U64!
+	per_item_create: U64!
+	per_item_write: U64!
+	per_byte_read: U64!
+	per_byte_create: U64!
+	per_byte_write: U64!
+}
+
+type StorageGasConfig {
+	item_config: UsageGasConfig!
+	byte_config: UsageGasConfig!
+}
+
+type Store {
+	staking_contracts: SimpleMap!
+	create_staking_contract_events: EventHandle!
+	update_voter_events: EventHandle!
+	reset_lockup_events: EventHandle!
+	add_stake_events: EventHandle!
+	request_commission_events: EventHandle!
+	unlock_stake_events: EventHandle!
+	switch_operator_events: EventHandle!
+	add_distribution_events: EventHandle!
+	distribute_events: EventHandle!
+}
+
+
+type Supply {
+	current: U128!
+	maximum: Option!
+}
+
+type SupplyConfig {
+	allow_upgrades: Boolean!
+}
+
+type SwitchOperatorEvent {
+	old_operator: Address!
+	new_operator: Address!
+	pool_address: Address!
+}
+
+type Table {
+	handle: Address!
+}
+
+type TableWithLength {
+	inner: Table!
+	length: U64!
+}
+
+type TerminateEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+}
+
+type TombStone {
+	original_owner: Address!
+}
+
+type TransactionExecutionFailedEvent {
+	executor: Address!
+	sequence_number: U64!
+	transaction_payload: [U8!]!
+	num_approvals: U64!
+	execution_error: ExecutionError!
+}
+
+type TransactionExecutionSucceededEvent {
+	executor: Address!
+	sequence_number: U64!
+	transaction_payload: [U8!]!
+	num_approvals: U64!
+}
+
+type TransactionValidation {
+	module_addr: Address!
+	module_name: [U8!]!
+	script_prologue_name: [U8!]!
+	module_prologue_name: [U8!]!
+	multi_agent_prologue_name: [U8!]!
+	user_epilogue_name: [U8!]!
+}
+
+type TransferEvent {
+	object: Address!
+	from: Address!
+	to: Address!
+}
+
+type TypeInfo {
+	account_address: Address!
+	module_name: [U8!]!
+	struct_name: [U8!]!
+}
+
+scalar U128
+
+scalar U16
+
+scalar U256
+
+scalar U32
+
+scalar U64
+
+scalar U8
+
+type UnlockRewardsEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	staking_pool_address: Address!
+	amount: U64!
+}
+
+type UpdateCommissionEvent {
+	staker: Address!
+	operator: Address!
+	old_commission_percentage: U64!
+	new_commission_percentage: U64!
+}
+
+type UpdateConfigEvent {
+	min_voting_threshold: U128!
+	required_proposer_stake: U64!
+	voting_duration_secs: U64!
+}
+
+type UpdateEpochIntervalEvent {
+	old_epoch_interval: U64!
+	new_epoch_interval: U64!
+}
+
+type UpdateNetworkAndFullnodeAddressesEvent {
+	pool_address: Address!
+	old_network_addresses: [U8!]!
+	new_network_addresses: [U8!]!
+	old_fullnode_addresses: [U8!]!
+	new_fullnode_addresses: [U8!]!
+}
+
+type UpdateOperatorEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	staking_pool_address: Address!
+	old_operator: Address!
+	new_operator: Address!
+	commission_percentage: U64!
+}
+
+type UpdateSignaturesRequiredEvent {
+	old_num_signatures_required: U64!
+	new_num_signatures_required: U64!
+}
+
+type UpgradePolicy {
+	policy: U8!
+}
+
+type Usage {
+	items: U64!
+	bytes: U64!
+}
+
+type UsageGasConfig {
+	target_usage: U64!
+	read_curve: GasCurve!
+	create_curve: GasCurve!
+	write_curve: GasCurve!
+}
+
+type ValidatorConfig {
+	consensus_pubkey: [U8!]!
+	network_addresses: [U8!]!
+	fullnode_addresses: [U8!]!
+	validator_index: U64!
+}
+
+type ValidatorConfiguration {
+	owner_address: Address!
+	operator_address: Address!
+	voter_address: Address!
+	stake_amount: U64!
+	consensus_pubkey: [U8!]!
+	proof_of_possession: [U8!]!
+	network_addresses: [U8!]!
+	full_node_network_addresses: [U8!]!
+}
+
+type ValidatorConfigurationWithCommission {
+	validator_config: ValidatorConfiguration!
+	commission_percentage: U64!
+	join_during_genesis: Boolean!
+}
+
+type ValidatorFees {
+	fees_table: Table!
+}
+
+type ValidatorInfo {
+	addr: Address!
+	voting_power: U64!
+	config: ValidatorConfig!
+}
+
+type ValidatorPerformance {
+	validators: [IndividualValidatorPerformance!]!
+}
+
+type ValidatorSet {
+	consensus_scheme: U8!
+	active_validators: [ValidatorInfo!]!
+	pending_inactive: [ValidatorInfo!]!
+	pending_active: [ValidatorInfo!]!
+	total_voting_power: U128!
+	total_joining_power: U128!
+}
+
+type Version {
+	major: U64!
+}
+
+type VestEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	staking_pool_address: Address!
+	period_vested: U64!
+	amount: U64!
+}
+
+type VestingAccountManagement {
+	roles: SimpleMap!
+}
+
+type VestingContract {
+	state: U64!
+	admin: Address!
+	grant_pool: _0x1__pool_u64__Pool!
+	beneficiaries: SimpleMap!
+	vesting_schedule: VestingSchedule!
+	withdrawal_address: Address!
+	staking: StakingInfo!
+	remaining_grant: U64!
+	signer_cap: SignerCapability!
+	update_operator_events: EventHandle!
+	update_voter_events: EventHandle!
+	reset_lockup_events: EventHandle!
+	set_beneficiary_events: EventHandle!
+	unlock_rewards_events: EventHandle!
+	vest_events: EventHandle!
+	distribute_events: EventHandle!
+	terminate_events: EventHandle!
+	admin_withdraw_events: EventHandle!
+}
+
+type VestingSchedule {
+	schedule: [FixedPoint32!]!
+	start_timestamp_secs: U64!
+	period_duration: U64!
+	last_vested_period: U64!
+}
+
+type VoteDelegation {
+	voter: Address!
+	pending_voter: Address!
+	last_locked_until_secs: U64!
+}
+
+type VotingEvents {
+	create_proposal_events: EventHandle!
+	register_forum_events: EventHandle!
+	resolve_proposal_events: EventHandle!
+	vote_events: EventHandle!
+}
+
+type VotingForum {
+	proposals: Table!
+	events: VotingEvents!
+	next_proposal_id: U64!
+}
+
+type VotingRecordKey {
+	voter: Address!
+	proposal_id: U64!
+}
+
+type VotingRecords {
+	votes: Table!
+}
+
+type VotingRecordsV2 {
+	votes: SmartTable!
+}
+
+type _0x1__aggregator__Aggregator {
+	handle: Address!
+	key: Address!
+	limit: U128!
+}
+
+type _0x1__aggregator_v2__Aggregator {
+	value: Any!
+	max_value: Any!
+}
+
+type _0x1__any__Any {
+	type_name: String!
+	data: [U8!]!
+}
+
+type _0x1__aptos_governance__CreateProposalEvent {
+	proposer: Address!
+	stake_pool: Address!
+	proposal_id: U64!
+	execution_hash: [U8!]!
+	proposal_metadata: SimpleMap!
+}
+
+type _0x1__aptos_governance__VoteEvent {
+	proposal_id: U64!
+	voter: Address!
+	stake_pool: Address!
+	num_votes: U64!
+	should_pass: Boolean!
+}
+
+type _0x1__bls12381__Signature {
+	bytes: [U8!]!
+}
+
+type _0x1__coin__DepositEvent {
+	amount: U64!
+}
+
+type _0x1__coin__WithdrawEvent {
+	amount: U64!
+}
+
+type _0x1__copyable_any__Any {
+	type_name: String!
+	data: [U8!]!
+}
+
+type _0x1__crypto_algebra__Element {
+	handle: U64!
+}
+
+type _0x1__delegation_pool__AddStakeEvent {
+	pool_address: Address!
+	delegator_address: Address!
+	amount_added: U64!
+	add_stake_fee: U64!
+}
+
+type _0x1__delegation_pool__BeneficiaryForOperator {
+	beneficiary_for_operator: Address!
+}
+
+type _0x1__delegation_pool__CreateProposalEvent {
+	proposal_id: U64!
+	voter: Address!
+	delegation_pool: Address!
+}
+
+type _0x1__delegation_pool__ReactivateStakeEvent {
+	pool_address: Address!
+	delegator_address: Address!
+	amount_reactivated: U64!
+}
+
+type _0x1__delegation_pool__SetBeneficiaryForOperator {
+	operator: Address!
+	old_beneficiary: Address!
+	new_beneficiary: Address!
+}
+
+type _0x1__delegation_pool__UnlockStakeEvent {
+	pool_address: Address!
+	delegator_address: Address!
+	amount_unlocked: U64!
+}
+
+type _0x1__delegation_pool__VoteEvent {
+	voter: Address!
+	proposal_id: U64!
+	delegation_pool: Address!
+	num_votes: U64!
+	should_pass: Boolean!
+}
+
+type _0x1__delegation_pool__WithdrawStakeEvent {
+	pool_address: Address!
+	delegator_address: Address!
+	amount_withdrawn: U64!
+}
+
+type _0x1__ed25519__Signature {
+	bytes: [U8!]!
+}
+
+type _0x1__ed25519__UnvalidatedPublicKey {
+	bytes: [U8!]!
+}
+
+type _0x1__ed25519__ValidatedPublicKey {
+	bytes: [U8!]!
+}
+
+type _0x1__fungible_asset__DepositEvent {
+	amount: U64!
+}
+
+type _0x1__fungible_asset__TransferRef {
+	metadata: Object!
+}
+
+type _0x1__fungible_asset__WithdrawEvent {
+	amount: U64!
+}
+
+type _0x1__guid__ID {
+	creation_num: U64!
+	addr: Address!
+}
+
+type _0x1__multi_ed25519__Signature {
+	bytes: [U8!]!
+}
+
+type _0x1__multi_ed25519__UnvalidatedPublicKey {
+	bytes: [U8!]!
+}
+
+type _0x1__multi_ed25519__ValidatedPublicKey {
+	bytes: [U8!]!
+}
+
+type _0x1__multisig_account__VoteEvent {
+	owner: Address!
+	sequence_number: U64!
+	approved: Boolean!
+}
+
+type _0x1__object__TransferRef {
+	self: Address!
+}
+
+type _0x1__pool_u64__Pool {
+	shareholders_limit: U64!
+	total_coins: U64!
+	total_shares: U64!
+	shares: SimpleMap!
+	shareholders: [Address!]!
+	scaling_factor: U64!
+}
+
+type _0x1__pool_u64_unbound__Pool {
+	total_coins: U64!
+	total_shares: U128!
+	shares: TableWithLength!
+	scaling_factor: U64!
+}
+
+type _0x1__simple_map__Element {
+	key: Any!
+	value: Any!
+}
+
+type _0x1__stake__AddStakeEvent {
+	pool_address: Address!
+	amount_added: U64!
+}
+
+type _0x1__stake__AptosCoinCapabilities {
+	mint_cap: MintCapability!
+}
+
+type _0x1__stake__ReactivateStakeEvent {
+	pool_address: Address!
+	amount: U64!
+}
+
+type _0x1__stake__UnlockStakeEvent {
+	pool_address: Address!
+	amount_unlocked: U64!
+}
+
+type _0x1__stake__WithdrawStakeEvent {
+	pool_address: Address!
+	amount_withdrawn: U64!
+}
+
+type _0x1__staking_contract__AddStakeEvent {
+	operator: Address!
+	pool_address: Address!
+	amount: U64!
+}
+
+type _0x1__staking_contract__BeneficiaryForOperator {
+	beneficiary_for_operator: Address!
+}
+
+type _0x1__staking_contract__DistributeEvent {
+	operator: Address!
+	pool_address: Address!
+	recipient: Address!
+	amount: U64!
+}
+
+type _0x1__staking_contract__ResetLockupEvent {
+	operator: Address!
+	pool_address: Address!
+}
+
+type _0x1__staking_contract__SetBeneficiaryForOperator {
+	operator: Address!
+	old_beneficiary: Address!
+	new_beneficiary: Address!
+}
+
+type _0x1__staking_contract__UnlockStakeEvent {
+	operator: Address!
+	pool_address: Address!
+	amount: U64!
+	commission_paid: U64!
+}
+
+type _0x1__staking_contract__UpdateVoterEvent {
+	operator: Address!
+	pool_address: Address!
+	old_voter: Address!
+	new_voter: Address!
+}
+
+type _0x1__string__String {
+	bytes: [U8!]!
+}
+
+type _0x1__transaction_fee__AptosCoinCapabilities {
+	burn_cap: BurnCapability!
+}
+
+type _0x1__vesting__DistributeEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	amount: U64!
+}
+
+type _0x1__vesting__ResetLockupEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	staking_pool_address: Address!
+	new_lockup_expiration_secs: U64!
+}
+
+type _0x1__vesting__UpdateVoterEvent {
+	admin: Address!
+	vesting_contract_address: Address!
+	staking_pool_address: Address!
+	old_voter: Address!
+	new_voter: Address!
+}
+
+type _0x1__voting__CreateProposalEvent {
+	proposal_id: U64!
+	early_resolution_vote_threshold: Option!
+	execution_hash: [U8!]!
+	expiration_secs: U64!
+	metadata: SimpleMap!
+	min_vote_threshold: U128!
+}
+
+type _0x1__voting__VoteEvent {
+	proposal_id: U64!
+	num_votes: U64!
+}

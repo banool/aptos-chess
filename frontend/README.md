@@ -1,30 +1,41 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Aptos Chess
 
-## Getting Started
-
-First, run the development server:
-
+## Development
+Run the development server:
 ```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Codegen
+Compile the CLI from this branch in aptos-core: banool/rust-move-codegen.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Run this from the `move/` directory to generate the schema from the Move module:
+```bash
+aptos move generate abi
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Run this from the `frontend/` directory:
+```bash
+bun run generate-from-move
+```
 
-## Learn More
+## Old
 
-To learn more about Next.js, take a look at the following resources:
+We use [Surf](https://github.com/ThalaLabs/surf). Surf requires the ABI of the Move module in the JSON format that comes from the node API. First, spin up the local test environment:
+```
+python scripts/start_local_env.py -f --aptos-cli-path ~/a/core/target/debug/aptos
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Run this to get the ABI as JSON:
+```
+curl http://127.0.0.1:8080/v1/accounts/0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30/module/chess | jq .abi | pbcopy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Paste that into this file:
+```
+src/app/generated/chess/abi.ts
+```
 
-## Deploy on Vercel
+I tried to use typemove but I had issues: https://github.com/sentioxyz/typemove/issues/52.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+I also had issues with Surf: https://github.com/ThalaLabs/surf/issues/67. Beyond just this I found that it's up to you to add all the ABIs, which is painful if you rely on modules outside of 0x1.
