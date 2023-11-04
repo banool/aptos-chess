@@ -2,7 +2,6 @@
 // Or in standard chess notation, 0,0 is a1.
 
 // TODO:
-// - Add support for en passant
 // - Add support for draw by repetition
 // - Add support for draw by insufficient material
 // - Add support for various time settings
@@ -286,7 +285,10 @@ module addr::chess {
         let piece_type = moving_piece.piece_type;
 
         // Assert the move is valid based on the piece's movement rules.
-        assert!(is_valid_move(&game_.board, src_x, src_y, dest_x, dest_y, color, piece_status), error::invalid_argument(E_INVALID_MOVE));
+        assert!(
+            is_valid_move(&game_.board, src_x, src_y, dest_x, dest_y, color, piece_status, &game_.en_passant_target),
+            error::invalid_argument(E_INVALID_MOVE),
+        );
 
         // Set the source position to none.
         let piece = {
@@ -303,6 +305,23 @@ module addr::chess {
         // If the piece is a pawn and it made it to the back rank, promote it.
         if (piece_type == PAWN && ((color == WHITE && dest_y == 7) || (color == BLACK && dest_y == 0))) {
             piece.piece_type = promote_to;
+        };
+
+        // If the piece moved is a pawn and it moved two spaces, record that there is a
+        // valid en passant target. Otherwise, remove any en passant target. We have
+        // already checked whether this was valid, e.g. if the piece was at the
+        // starting position, so we don't need to check that again.
+        let delta_y = difference(src_y, dest_y);
+        if (delta_y == 2 && piece_type == PAWN) {
+            let en_passant_target = if (color == WHITE) {
+                EnPassantTarget { x: dest_x, y: dest_y - 1 }
+            } else {
+                EnPassantTarget { x: dest_x, y: dest_y + 1 }
+            };
+            game_.en_passant_target = option::some(en_passant_target);
+        } else {
+            // En passant must be exercised immediately or the privilege is lost.
+            game_.en_passant_target = option::none();
         };
 
         // Put the piece in the destination position.
@@ -333,12 +352,11 @@ module addr::chess {
         // Update whose turn it is.
         game_.is_white_turn = !game_.is_white_turn;
 
-        // If anyone offered a draw, consider making a move either a retraction or a
-        // rejection of that offer.
+        // If there is an active draw offer, consider making a move either a retraction
+        // or a rejection of that offer.
         game_.draw_offered_by = option::none();
     }
 
-    // todo, verify rules for when you're allowed to resign
     public entry fun resign(
         player: &signer,
         game: Object<Game>,
@@ -358,7 +376,8 @@ module addr::chess {
         }
     }
 
-    // todo, verify rules for when you're allowed to offer and accept a draw
+    // Even though it is good etiquete to make a move before offering a draw, it is not
+    // a rule, so we don't enforce it here.
     public entry fun offer_draw(
         player: &signer,
         game: Object<Game>,
@@ -437,7 +456,16 @@ module addr::chess {
         piece;
     }
 
-    fun is_valid_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8, piece_status: PieceStatus): bool {
+    fun is_valid_move(
+        board: &Board,
+        src_x: u8,
+        src_y: u8,
+        dest_x: u8,
+        dest_y: u8,
+        color: u8,
+        piece_status: PieceStatus,
+        en_passant_target: &Option<EnPassantTarget>,
+    ): bool {
         let moving_piece = option::borrow(borrow_piece(board, src_x, src_y));
         let piece_type = moving_piece.piece_type;
 
@@ -457,7 +485,7 @@ module addr::chess {
         } else if (piece_type == KNIGHT) {
             valid_move = is_valid_knight_move(board, src_x, src_y, dest_x, dest_y, color);
         } else if (piece_type == PAWN) {
-            valid_move = is_valid_pawn_move(board, src_x, src_y, dest_x, dest_y, color);
+            valid_move = is_valid_pawn_move(board, src_x, src_y, dest_x, dest_y, color, en_passant_target);
         } else {
             // This should never be possible.
             abort 0
@@ -556,12 +584,13 @@ module addr::chess {
 
                 if (piece.color == opponent) {
                     // TODO: I don't think the PieceStatus matters here but double check.
+                    // TODO: Same thing with EnPassantTarget
                     let piece_status = PieceStatus {
                         queen_side_rook_has_moved: false,
                         king_side_rook_has_moved: false,
                         king_has_moved: false,
                     };
-                    if (is_valid_move(board, x, y, piece_x, piece_y, opponent, piece_status)) {
+                    if (is_valid_move(board, x, y, piece_x, piece_y, opponent, piece_status, &option::none())) {
                         return true
                     };
                 };
@@ -621,28 +650,33 @@ module addr::chess {
         assert!(!is_king_in_check(&game_.board, WHITE), 6);
     }
 
-    // TODO: Use the UP DOWN LEFT RIGHT constants
     fun king_has_valid_moves(board: &Board, king_x: u8, king_y: u8, player: u8): bool {
         let dx: vector<u8> = vector::empty();
         let dy: vector<u8> = vector::empty();
 
         vector::push_back(&mut dx, 0);
-        vector::push_back(&mut dx, 1);
-        vector::push_back(&mut dx, 1);
-        vector::push_back(&mut dx, 1);
-        vector::push_back(&mut dx, 0);
-        vector::push_back(&mut dx, 7);
-        vector::push_back(&mut dx, 7);
-        vector::push_back(&mut dx, 7);
+        vector::push_back(&mut dy, UP);
 
-        vector::push_back(&mut dy, 1);
-        vector::push_back(&mut dy, 1);
+        vector::push_back(&mut dx, RIGHT);
+        vector::push_back(&mut dy, UP);
+
+        vector::push_back(&mut dx, RIGHT);
         vector::push_back(&mut dy, 0);
-        vector::push_back(&mut dy, 7);
-        vector::push_back(&mut dy, 7);
-        vector::push_back(&mut dy, 7);
+
+        vector::push_back(&mut dx, RIGHT);
+        vector::push_back(&mut dy, DOWN);
+
+        vector::push_back(&mut dx, 0);
+        vector::push_back(&mut dy, DOWN);
+
+        vector::push_back(&mut dx, LEFT);
+        vector::push_back(&mut dy, DOWN);
+
+        vector::push_back(&mut dx, LEFT);
         vector::push_back(&mut dy, 0);
-        vector::push_back(&mut dy, 1);
+
+        vector::push_back(&mut dx, LEFT);
+        vector::push_back(&mut dy, UP);
 
         let size = vector::length(&dx);
         let i = 0;
@@ -653,24 +687,21 @@ module addr::chess {
             let new_x = king_x;
             let new_y = king_y;
 
-            if (*delta_x != 0) {
-                if (*delta_x == 1) {
-                    new_x = new_x + 1;
-                } else {
-                    if (king_x > 0) {
-                        new_x = new_x - 1;
-                    };
-                };
+            // TODO: Replace this with overflow safe ceil / floor functions.
+            // Bounded math in other words.
+
+            if (*delta_x == RIGHT && king_x < 7) {
+                new_x = new_x + 1;
+            };
+            if (*delta_x == LEFT && king_x > 0) {
+                new_x = new_x - 1;
             };
 
-            if (*delta_y != 0) {
-                if (*delta_y == 1) {
-                    new_y = new_y + 1;
-                } else {
-                    if (king_y > 0) {
-                        new_y = new_y - 1;
-                    };
-                };
+            if (*delta_y == UP && king_y < 7) {
+                new_y = new_y + 1;
+            };
+            if (*delta_y == DOWN && king_y > 0) {
+                new_y = new_y - 1;
             };
 
             if (
@@ -686,6 +717,7 @@ module addr::chess {
         return false
     }
 
+    // TODO: Test near the edge of the board.
     #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
     fun test_king_has_valid_moves(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
@@ -1161,7 +1193,7 @@ module addr::chess {
         return (is_valid_rook_move(board, src_x, src_y, dest_x, dest_y, color) || is_valid_bishop_move(board, src_x, src_y, dest_x, dest_y, color))
     }
 
-    fun is_valid_pawn_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8): bool {
+    fun is_valid_pawn_move(board: &Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8, color: u8, en_passant_target: &Option<EnPassantTarget>): bool {
         let allowed_direction: u8 = if (color == WHITE) { UP } else { DOWN };
 
         let delta_x = difference(src_x, dest_x);
@@ -1177,6 +1209,7 @@ module addr::chess {
         if (actual_direction != allowed_direction) {
             return false
         };
+
 
         let to_piece_opt = borrow_piece(board, dest_x, dest_y);
 
@@ -1213,7 +1246,13 @@ module addr::chess {
                 if (to_piece.color != color) {
                     return true
                 };
-            };
+            // Check for en passant.
+            } else if (option::is_some(en_passant_target)) {
+                let en_passant_target = option::borrow(en_passant_target);
+                if (dest_x == en_passant_target.x && dest_y == en_passant_target.y) {
+                    return true
+                }
+            }
         };
 
         return false
@@ -1229,46 +1268,52 @@ module addr::chess {
         let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         // A white pawn at 1,1 should be able to move to 1,2.
-        assert!(is_valid_pawn_move(&game_.board, 1, 1, 1, 2, WHITE), 1);
+        assert!(is_valid_pawn_move(&game_.board, 1, 1, 1, 2, WHITE, &option::none()), 1);
 
         // A white pawn at 1,1 should be able to move to 1,3.
-        assert!(is_valid_pawn_move(&game_.board, 1, 1, 1, 3, WHITE), 2);
+        assert!(is_valid_pawn_move(&game_.board, 1, 1, 1, 3, WHITE, &option::none()), 2);
 
         // A white pawn at 1,2 should not be able to move to 1,4.
-        assert!(!is_valid_pawn_move(&game_.board, 1, 2, 1, 4, WHITE), 2);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 2, 1, 4, WHITE, &option::none()), 2);
 
         // A white pawn at 1,1 should not be able to move to 1,4.
-        assert!(!is_valid_pawn_move(&game_.board, 1, 1, 1, 4, WHITE), 3);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 1, 1, 4, WHITE, &option::none()), 3);
 
         // A white pawn at 1,1 should not be able to move to 2,2.
-        assert!(!is_valid_pawn_move(&game_.board, 1, 1, 2, 2, WHITE), 4);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 1, 2, 2, WHITE, &option::none()), 4);
 
         // A white pawn at 4,4 should not be able to move backwards to 4,3.
-        assert!(!is_valid_pawn_move(&game_.board, 4, 4, 4, 3, WHITE), 5);
+        assert!(!is_valid_pawn_move(&game_.board, 4, 4, 4, 3, WHITE, &option::none()), 5);
 
         // A black pawn at 1,6 should be able to move to 1,5.
-        assert!(is_valid_pawn_move(&game_.board, 1, 6, 1, 5, BLACK), 6);
+        assert!(is_valid_pawn_move(&game_.board, 1, 6, 1, 5, BLACK, &option::none()), 6);
 
         // A black pawn at 1,6 should be able to move to 1,4.
-        assert!(is_valid_pawn_move(&game_.board, 1, 6, 1, 4, BLACK), 7);
+        assert!(is_valid_pawn_move(&game_.board, 1, 6, 1, 4, BLACK, &option::none()), 7);
 
         // A black pawn at 1,6 should not be able to move to 1,3.
-        assert!(!is_valid_pawn_move(&game_.board, 1, 6, 1, 3, BLACK), 8);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 6, 1, 3, BLACK, &option::none()), 8);
 
         // A black pawn at 1,6 should not be able to move to 2,5.
-        assert!(!is_valid_pawn_move(&game_.board, 1, 6, 2, 5, BLACK), 9);
+        assert!(!is_valid_pawn_move(&game_.board, 1, 6, 2, 5, BLACK, &option::none()), 9);
 
         // A black pawn at 4,4 should not be able to move backwards to 4,5.
-        assert!(!is_valid_pawn_move(&game_.board, 4, 4, 4, 5, BLACK), 10);
+        assert!(!is_valid_pawn_move(&game_.board, 4, 4, 4, 5, BLACK, &option::none()), 10);
 
         // A white pawn at 1,5 should be able to capture a black pawn at 0,6.
-        assert!(is_valid_pawn_move(&game_.board, 1, 5, 0, 6, WHITE), 11);
+        assert!(is_valid_pawn_move(&game_.board, 1, 5, 0, 6, WHITE, &option::none()), 11);
 
         // A black pawn at 0,7 should not be able to capture a black pawn at 1,6.
-        assert!(!is_valid_pawn_move(&game_.board, 0, 7, 1, 6, BLACK), 12);
+        assert!(!is_valid_pawn_move(&game_.board, 0, 7, 1, 6, BLACK, &option::none()), 12);
 
         // A black pawn at 0,7 should not be able to move into a space with its own piece at 0,6.
-        assert!(!is_valid_pawn_move(&game_.board, 0, 7, 0, 6, BLACK), 12);
+        assert!(!is_valid_pawn_move(&game_.board, 0, 7, 0, 6, BLACK, &option::none()), 12);
+
+        // If there is a black pawn at 1,3 and a white pawn just moved to 0,3 from the
+        // starting rank, the black pawn should be able to capture the white pawn en
+        // passant.
+        move_piece(&mut game_.board, 1, 6, 1, 3);
+        assert!(is_valid_pawn_move(&game_.board, 1, 3, 0, 2, BLACK, &option::some(EnPassantTarget { x: 0, y: 2 })), 13);
 
         // TODO: Test pawn promotion works.
     }
