@@ -4,14 +4,14 @@ import { GraphQLClient } from 'graphql-request';
 import * as Dom from 'graphql-request/dist/types.dom';
 
 export const GetGames = `
-    query GetGames($moduleId: String, $createdSpec: jsonb, $invitedSpec: jsonb) {
+    query GetGames($eventType: String, $createdSpec: jsonb, $invitedSpec: jsonb) {
   created: events(
-    where: {type: {_eq: $moduleId}, data: {_contains: $createdSpec}}
+    where: {indexed_type: {_eq: $eventType}, data: {_contains: $createdSpec}}
   ) {
     data
   }
   invited: events(
-    where: {type: {_eq: $moduleId}, data: {_contains: $invitedSpec}}
+    where: {indexed_type: {_eq: $eventType}, data: {_contains: $invitedSpec}}
   ) {
     data
   }

@@ -1,7 +1,7 @@
 import * as Types from './types';
 
 export type GetGamesQueryVariables = Types.Exact<{
-  moduleId?: Types.InputMaybe<Types.Scalars['String']>;
+  eventType?: Types.InputMaybe<Types.Scalars['String']>;
   createdSpec?: Types.InputMaybe<Types.Scalars['jsonb']>;
   invitedSpec?: Types.InputMaybe<Types.Scalars['jsonb']>;
 }>;

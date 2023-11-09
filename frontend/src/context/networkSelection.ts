@@ -1,20 +1,18 @@
-'use client'
+"use client";
 
 import { Network, NetworkToNetworkName } from "@aptos-labs/ts-sdk";
 
-import {
-  defaultNetwork,
-} from "../constants";
-import {useEffect} from "react";
+import { defaultNetwork } from "../constants";
+import { useEffect } from "react";
 import useQueryParams from "../utils/queryParams";
 
 // Returns a Network if the given string is a valid network name, otherwise returns
 // undefined.
 export function getNetwork(value: string): Network | undefined {
-    // https://aptos-org.slack.com/archives/C05NLAKJM9U/p1699122142193429
-    // This should be NetworkNameToNetwork
-    return NetworkToNetworkName[value];
-  }
+  // https://aptos-org.slack.com/archives/C05NLAKJM9U/p1699122142193429
+  // This should be NetworkNameToNetwork
+  return NetworkToNetworkName[value];
+}
 
 export function isValidNetworkString(value: string): boolean {
   return getNetwork(value) !== undefined;
@@ -55,7 +53,7 @@ export function useNetworkSelector() {
 
   function selectNetwork(
     network: string,
-    {replace = false}: {replace?: boolean} = {},
+    { replace = false }: { replace?: boolean } = {},
   ) {
     setQueryParam("network", network);
     writeSelectedNetworkToLocalStorage(network);

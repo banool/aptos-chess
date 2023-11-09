@@ -33,7 +33,7 @@ curl http://127.0.0.1:8080/v1/accounts/0x296102a3893d43e11de2aa142fbb126377120d7
 
 Paste that into this file:
 ```
-src/app/generated/chess/abi.ts
+src/types/abis.ts
 ```
 
 I tried to use typemove but I had issues: https://github.com/sentioxyz/typemove/issues/52.

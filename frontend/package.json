@@ -8,14 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "fmt": "prettier --write 'src/**/*.(js|ts|jsx|tsx|mdx)'",
-    "generate-from-move": "graphql-codegen --config ./src/codegen/move/codegen.ts",
+    "generate-from-move": "echo 'We use Surf instead now' && exit && graphql-codegen --config ./src/codegen/move/codegen.ts",
     "generate-from-indexer-queries": "graphql-codegen --config ./src/codegen/indexer/codegen.ts"
   },
   "dependencies": {
-    "@aptos-labs/ts-sdk": "0.0.4",
+    "@aptos-labs/ts-sdk": "0.0.5",
     "@aptos-labs/wallet-adapter-react": "^1.4.0",
-    "@nextui-org/react": "^2.2.1",
-    "@thalalabs/surf": "^0.0.15",
+    "@thalalabs/surf": "^0.0.16",
     "framer-motion": "^10.16.4",
     "graphql-request": "=5.1.0",
     "next": "14.0.1",
