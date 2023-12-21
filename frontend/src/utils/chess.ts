@@ -2,7 +2,7 @@ import { BLACK, Board, Piece } from "../types/surf";
 
 // Convert a piece to the corresponding FEN character.
 function pieceToFenChar(piece: Piece): string {
-  const isBlack = piece.color == BLACK;
+  const isBlack = piece.color === BLACK;
   // This is the same order as the piece types in the Move module.
   const fenChars = ["R", "N", "B", "Q", "K", "P"];
   let fenChar = fenChars[piece.piece_type - 1];

@@ -1,0 +1,14 @@
+/* When it is ready, use Jill's Chakra UI version of the wallet selector. */
+
+.wallet-button {
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.wallet-connect-button {
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}

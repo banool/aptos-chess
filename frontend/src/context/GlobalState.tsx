@@ -1,5 +1,5 @@
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
-import React, { useMemo } from "react";
+import React, { createContext, useMemo } from "react";
 import { defaultNetwork } from "../constants";
 import { useNetworkSelector } from "./networkSelection";
 
@@ -17,13 +17,14 @@ type GlobalActions = {
 };
 
 function deriveGlobalState({ network }: { network: Network }): GlobalState {
-  const config = new AptosConfig({ network: Network.LOCAL });
+  const config = new AptosConfig({ network });
   const client = new Aptos(config);
   return {
     network,
     client,
     // TODO: Use different addresses per network.
-    moduleAddress: "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30",
+    moduleAddress:
+      "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30",
   };
 }
 
@@ -31,8 +32,8 @@ const initialGlobalState = deriveGlobalState({
   network: defaultNetwork,
 });
 
-export const GlobalStateContext = React.createContext(initialGlobalState);
-export const GlobalActionsContext = React.createContext({} as GlobalActions);
+export const GlobalStateContext = createContext(initialGlobalState);
+export const GlobalActionsContext = createContext({} as GlobalActions);
 
 export const GlobalStateProvider = ({
   children,

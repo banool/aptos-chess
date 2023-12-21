@@ -1,4 +1,5 @@
-const CHESS_ABI = {
+// See the README for an explanation of where this came from.
+export const CHESS_ABI = {
   address: "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30",
   name: "chess",
   friends: [],

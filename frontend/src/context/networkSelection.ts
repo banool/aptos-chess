@@ -1,10 +1,8 @@
-"use client";
-
 import { Network, NetworkToNetworkName } from "@aptos-labs/ts-sdk";
 
 import { defaultNetwork } from "../constants";
 import { useEffect } from "react";
-import useQueryParams from "../utils/queryParams";
+import { useSearchParams } from "react-router-dom";
 
 // Returns a Network if the given string is a valid network name, otherwise returns
 // undefined.
@@ -25,7 +23,7 @@ function getUserSelectedNetworkFromLocalStorageWithDefault(): Network {
   return getNetwork(network ?? "") ?? defaultNetwork;
 }
 
-function writeSelectedNetworkToLocalStorage(network: Network) {
+function writeSelectedNetworkToLocalStorage(network: string) {
   const currentLocalStorageNetwork = localStorage.getItem(
     SELECTED_NETWORK_LOCAL_STORAGE_KEY,
   );
@@ -47,22 +45,25 @@ function writeSelectedNetworkToLocalStorage(network: Network) {
 //    This is aimed to be used by the network selection dropdown in the header.
 // WARNING: don't use this hook directly in components, rather use: const [useGlobalState, {selectNetwork}] = useGlobalState();
 export function useNetworkSelector() {
-  const { queryParams, setQueryParam } = useQueryParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const selectedNetworkQueryParam = queryParams.get("network") ?? "";
+  const selectedNetworkQueryParam = searchParams.get("network") ?? "";
 
   function selectNetwork(
     network: string,
     { replace = false }: { replace?: boolean } = {},
   ) {
-    setQueryParam("network", network);
+    setSearchParams((prev) => {
+      prev.set("network", network);
+      return prev;
+    });
     writeSelectedNetworkToLocalStorage(network);
   }
 
   // on init check for existence of network query param, if not present, check local storage for a previously selected network. Then set query param to the network defined in local storage.
   useEffect(
     () => {
-      const currentNetworkSearchParam = queryParams.get("network");
+      const currentNetworkSearchParam = searchParams.get("network");
       if (!isValidNetworkString(currentNetworkSearchParam ?? "")) {
         selectNetwork(getUserSelectedNetworkFromLocalStorageWithDefault(), {
           replace: true,
@@ -73,8 +74,9 @@ export function useNetworkSelector() {
     [], // empty [] makes this effect only run once (on mount)
   );
 
-  if (isValidNetworkString(selectedNetworkQueryParam)) {
-    return [selectedNetworkQueryParam, selectNetwork] as const;
+  const selectedNetwork = getNetwork(selectedNetworkQueryParam);
+  if (selectedNetwork !== undefined) {
+    return [selectedNetwork, selectNetwork] as const;
   } else {
     return [defaultNetwork, selectNetwork] as const;
   }

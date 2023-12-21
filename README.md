@@ -1,5 +1,7 @@
 # Aptos Chess
 
+Consider this: https://github.com/shadcn-ui/ui
+
 ## Developing
 To set up a local testnet, create an account on it, and deploy the Move module, run this:
 ```
