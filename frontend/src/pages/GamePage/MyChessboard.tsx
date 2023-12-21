@@ -25,7 +25,7 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const { data: game } = useGetAccountResource<Game>(
+  const { data: game, error } = useGetAccountResource<Game>(
     objectAddress,
     getChessResourceType(globalState, "Game"),
     { refetchInterval: 1500 },
@@ -33,7 +33,9 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
 
   // The only way I could find to properly resize the Chessboard was to make use of its
   // boardWidth property. This useEffect is used to figure out the width and height of
-  // the parent flex and use that to figure out boardWidth.
+  // the parent flex and use that to figure out boardWidth. We make sure this triggers
+  // when the game data changes, because we don't render the Chessboard until that data
+  // comes in.
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       for (let entry of entries) {
@@ -51,10 +53,14 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [game]);
+
+  if (error) {
+    return <Box>{`Error loading game: ${JSON.stringify(error)}`}</Box>;
+  }
 
   if (game === undefined) {
-    return <Box>Loading...</Box>;
+    return null;
   }
 
   const fen = gameToFen(game);
@@ -72,10 +78,17 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
   // Because width and height are zero when first loading, we must set a minimum width
   // of 100 pixels otherwise it breaks the board (it will just show the number zero),
   // even once the width and height update.
+  console.log(`Dimensions: ${JSON.stringify(dimensions)}`);
   const width = Math.max(
     Math.min(dimensions.width, dimensions.height) * 0.8,
-    100,
+    24,
   );
+  // If the width is less than 25 we hide the chessboard to avoid perceived flickering
+  // on load.
+  let boxDisplay = undefined;
+  if (width < 25) {
+    boxDisplay = "none";
+  }
 
   return (
     <Flex
@@ -85,14 +98,14 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
       justifyContent="center"
       alignItems="center"
     >
-      <Box>
+      <Box display={boxDisplay}>
         <Chessboard
           id="main"
           boardWidth={width}
           boardOrientation={boardOrientation}
           position={fen}
         />
-      </Box>
+        </Box>
     </Flex>
   );
 };
