@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { GetGames } from "../codegen/indexer/generated/queries";
 import { useGlobalState } from "../context/GlobalState";
 import { AccountAddress } from "@aptos-labs/ts-sdk";
@@ -10,18 +10,14 @@ export type GamesLookup = {
   invited: GameCreatedEvent[];
 };
 
-export function useGamesQueryKey() {
-  return ["getAccounts"];
-}
-
 export function useGames(
   userAddress: AccountAddress,
   { enabled }: { enabled?: boolean },
 ) {
   const [globalState] = useGlobalState();
-  return useQuery<GamesLookup>(
-    useGamesQueryKey(),
-    async () => {
+  return useQuery<GamesLookup>({
+    queryKey: ["getGames", userAddress],
+    queryFn: async () => {
       const eventType = `${globalState.moduleAddress}::chess::GameCreatedEvent`;
       const createdSpec = {
         creator_address: userAddress,
@@ -40,6 +36,8 @@ export function useGames(
         invited: response.invited.map((e) => e.data),
       };
     },
-    { refetchInterval: 10000, retry: false, staleTime: Infinity, enabled },
-  );
+    refetchInterval: 10000,
+    retry: false,
+    enabled,
+  });
 }

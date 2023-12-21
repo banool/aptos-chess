@@ -25,11 +25,13 @@ const queryClient = new QueryClient();
 
 export const App = () => (
   <ChakraProvider theme={theme}>
-    <HashRouter>
-      <GlobalStateProvider>
-        <AppInner />
-      </GlobalStateProvider>
-    </HashRouter>
+    <QueryClientProvider client={queryClient}>
+      <HashRouter>
+        <GlobalStateProvider>
+          <AppInner />
+        </GlobalStateProvider>
+      </HashRouter>
+    </QueryClientProvider>
   </ChakraProvider>
 );
 
@@ -66,9 +68,7 @@ export const AppInner = () => {
     // when the selected network changes.
     <Box key={state.network}>
       <AptosWalletAdapterProvider plugins={wallets} autoConnect={true}>
-        <QueryClientProvider client={queryClient}>
-          <MyRoutes />
-        </QueryClientProvider>
+        <MyRoutes />
       </AptosWalletAdapterProvider>
     </Box>
   );

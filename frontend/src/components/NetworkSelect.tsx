@@ -11,7 +11,7 @@ function NetworkAndChainIdCached({
   networkName: string;
   chainId: string | null;
 }) {
-  return <>{chainId ? `${chainId}: ${toTitleCase(networkName)}` : "---"}</>;
+  return <>{chainId ? `${toTitleCase(networkName)} - ${chainId}` : "---"}</>;
 }
 
 function NetworkAndChainId({ network }: { network: Network }) {
@@ -31,7 +31,7 @@ export default function NetworkSelect() {
     selectNetwork(network_name);
   };
 
-  const networks: Network[] = [Network.MAINNET, Network.TESTNET];
+  const networks: Network[] = [Network.MAINNET, Network.TESTNET, Network.LOCAL];
   let options = [];
   for (const network of networks) {
     const item = NetworkAndChainId({ network });

@@ -1,6 +1,6 @@
 import { Network } from "@aptos-labs/ts-sdk";
 
-export const defaultNetwork = Network.MAINNET;
+export const defaultNetwork = Network.TESTNET;
 
 /**
  * Core Address

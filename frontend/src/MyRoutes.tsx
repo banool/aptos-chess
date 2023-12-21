@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import MainLayout from "./layouts/MainLayout";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { GamePage } from "./pages/GamePage";
 
 export default function MyRoutes() {
   return (
@@ -11,6 +12,14 @@ export default function MyRoutes() {
         element={
           <MainLayout>
             <HomePage />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/:game_address"
+        element={
+          <MainLayout>
+            <GamePage />
           </MainLayout>
         }
       />

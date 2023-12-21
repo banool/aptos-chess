@@ -70,3 +70,10 @@ export const useGlobalState = () =>
     React.useContext(GlobalStateContext),
     React.useContext(GlobalActionsContext),
   ] as const;
+
+export const getChessResourceType = (
+  state: GlobalState,
+  identifier: string,
+): string => {
+  return `${state.moduleAddress}::chess::${identifier}`;
+};

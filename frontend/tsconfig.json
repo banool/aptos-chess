@@ -2,9 +2,7 @@
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "allowJs": false,
-    "declaration": true,
-    "declarationDir": "types",
-    "declarationMap": true,
+    "declaration": false,
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "module": "esnext",
