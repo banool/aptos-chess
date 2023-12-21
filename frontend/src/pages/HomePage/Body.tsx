@@ -27,7 +27,6 @@ import {
 import React, { ReactNode, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useGlobalState } from "../../context/GlobalState";
-import { RowInfo, formatAmount } from "./RowInfo";
 import { AccountAddress } from "@aptos-labs/ts-sdk";
 import { sum } from "../../utils/utils";
 
