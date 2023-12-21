@@ -12,7 +12,7 @@ We use a consistent private key locally to make it easier to test.
 
 
 
-#Query like this:
+Query like this:
 
 {
   "moduleId": "0x296102a3893d43e11de2aa142fbb126377120d7d71c246a2f95d5b4f3ba16b30::chess::GameCreatedEvent",

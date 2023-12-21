@@ -29,7 +29,7 @@ import { useSearchParams } from "react-router-dom";
 import { useGlobalState } from "../../context/GlobalState";
 import { RowInfo, formatAmount } from "./RowInfo";
 import { AccountAddress } from "@aptos-labs/ts-sdk";
-import { sum } from "../../utils";
+import { sum } from "../../utils/utils";
 
 export const Body = () => {
   const [globalState] = useGlobalState();

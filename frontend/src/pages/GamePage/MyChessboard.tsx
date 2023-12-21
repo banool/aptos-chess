@@ -1,8 +1,13 @@
-import { Box, useToast } from "@chakra-ui/react";
-import { useState } from "react";
-import { Chessboard } from "react-chessboard";
+import { AspectRatio, Box, Flex, useToast } from "@chakra-ui/react";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { Chessboard, ClearPremoves } from "react-chessboard";
 import { Chess, ChessInstance, Move, PieceColor, ShortMove } from "chess.js";
-import { Piece, Square } from "react-chessboard/dist/chessboard/types";
+import {
+  BoardOrientation,
+  ChessboardProps,
+  Piece,
+  Square,
+} from "react-chessboard/dist/chessboard/types";
 import { useGetAccountResource } from "../../api/useGetAccountResource";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useSearchParams } from "react-router-dom";
@@ -10,18 +15,89 @@ import {
   getChessResourceType,
   useGlobalState,
 } from "../../context/GlobalState";
-import { Game } from "@/types/surf";
+import { Game } from "../../types/surf";
+import { gameToFen } from "../../utils/chess";
 
 export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
   const [globalState] = useGlobalState();
+  const { account } = useWallet();
 
-  const { data: gameData } = useGetAccountResource<Game>(
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  const { data: game } = useGetAccountResource<Game>(
     objectAddress,
     getChessResourceType(globalState, "Game"),
+    { refetchInterval: 1500 },
   );
 
-  console.log(`accountstuff: ${JSON.stringify(gameData)}`);
+  // The only way I could find to properly resize the Chessboard was to make use of its
+  // boardWidth property. This useEffect is used to figure out the width and height of
+  // the parent flex and use that to figure out boardWidth.
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
 
+    if (parentRef.current) {
+      observer.observe(parentRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  if (game === undefined) {
+    return <Box>Loading...</Box>;
+  }
+
+  const fen = gameToFen(game);
+  let boardOrientation: BoardOrientation;
+  if (account !== null) {
+    // TODO: Update this if we break the player1 is always white invariant.
+    boardOrientation = game.player1 === account.address ? "white" : "black";
+  } else {
+    // If there is no account connected, just show white at the bottom.
+    boardOrientation = "white";
+  }
+
+  console.log(`FEN: ${fen}`);
+
+  // Because width and height are zero when first loading, we must set a minimum width
+  // of 100 pixels otherwise it breaks the board (it will just show the number zero),
+  // even once the width and height update.
+  const width = Math.max(
+    Math.min(dimensions.width, dimensions.height) * 0.8,
+    100,
+  );
+
+  return (
+    <Flex
+      ref={parentRef}
+      w="100%"
+      flex="1"
+      justifyContent="center"
+      alignItems="center"
+    >
+      <Box>
+        <Chessboard
+          id="main"
+          boardWidth={width}
+          boardOrientation={boardOrientation}
+          position={fen}
+        />
+      </Box>
+    </Flex>
+  );
+};
+
+/*
   // TODO: We don't want to replace the chessinstance, we just want to manipulate it.
   // what is the best way to do that with react?
   const [chessInstance, setGame] = useState<ChessInstance | undefined>(
@@ -105,6 +181,4 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
       />
     );
   }
-
-  return <Box>{main}</Box>;
-};
+  */

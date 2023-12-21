@@ -27,9 +27,11 @@ interface LayoutProps {
 // TODO: Figure out how to make IconButton padding for GitHub button the same
 // as the color switcher button.
 export default function MainLayout({ children }: LayoutProps) {
-  const { isLoading, aptToUsd, error } = useGetAptToUsd();
+  // const { isLoading, aptToUsd, error } = useGetAptToUsd();
 
   let headerMiddle = null;
+
+  /*
   if (isLoading) {
     headerMiddle = <Text textAlign={"center"}>Loading APT price...</Text>;
   }
@@ -49,8 +51,8 @@ export default function MainLayout({ children }: LayoutProps) {
     console.log("Error loading APT price:");
     console.log(error);
   }
+  */
 
-  /*
   function getRandomFaceEmoji(): string {
     const emojis = [
       "😀",
@@ -75,7 +77,6 @@ export default function MainLayout({ children }: LayoutProps) {
       {getRandomFaceEmoji().repeat(3)}
     </Text>
   );
-  */
 
   // Courtesy of https://stackoverflow.com/q/75175422/3846032.
   const body = (

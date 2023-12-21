@@ -28,29 +28,35 @@ module addr::chess {
     #[test_only]
     use aptos_framework::account;
 
-    /// You tried to make an invalid move.
-    const E_INVALID_MOVE: u64 = 0;
+    /// You tried to make an invalid move based on basic movement rules.
+    const E_INVALID_MOVE_BASIC: u64 = 0;
+
+    /// You tried to make an invalid move based on that piece's specific movement rules.
+    const E_INVALID_MOVE_SPECIFIC: u64 = 1;
+
+    /// This Move would put your king in check.
+    const E_INVALID_MOVE_KING_IN_CHECK: u64 = 2;
 
     /// You tried to make a move out of turn.
-    const E_NOT_YOUR_TURN: u64 = 1;
+    const E_NOT_YOUR_TURN: u64 = 3;
 
     /// You tried to make a move in a game that is finished.
-    const E_GAME_FINISHED: u64 = 2;
+    const E_GAME_FINISHED: u64 = 4;
 
     /// You tried to join a game that you're not a part of.
-    const E_PLAYER_NOT_IN_GAME: u64 = 3;
+    const E_PLAYER_NOT_IN_GAME: u64 = 5;
 
     /// You tried to make a game with themselves.
-    const E_PLAYER_MADE_GAME_WITH_SELF: u64 = 4;
+    const E_PLAYER_MADE_GAME_WITH_SELF: u64 = 6;
 
     /// You tried to promote to an invalid piece type.
-    const E_INVALID_PROMOTION_INTENT: u64 = 5;
+    const E_INVALID_PROMOTION_INTENT: u64 = 7;
 
     /// You tried to accept a draw but the other player didn't offer one.
-    const E_NO_DRAW_OFFERED: u64 = 6;
+    const E_NO_DRAW_OFFERED: u64 = 8;
 
     /// You tried to accept a draw but you're the one who offered it.
-    const E_CANNOT_ACCEPT_OWN_DRAW_OFFER: u64 = 7;
+    const E_CANNOT_ACCEPT_OWN_DRAW_OFFER: u64 = 9;
 
     const ROOK: u8 = 1;
     const KNIGHT: u8 = 2;
@@ -277,7 +283,7 @@ module addr::chess {
         };
 
         // Assert the move passes some basic validity checks.
-        assert!(is_valid_basic(&game_.board, src_x, src_y, dest_x, dest_y, color), error::invalid_argument(E_INVALID_MOVE));
+        assert!(is_valid_basic(&game_.board, src_x, src_y, dest_x, dest_y, color), error::invalid_argument(E_INVALID_MOVE_BASIC));
 
         // Get the moving piece. At this point we have asserted that there is a piece
         // in the starting position, so we can unwrap the option.
@@ -287,7 +293,7 @@ module addr::chess {
         // Assert the move is valid based on the piece's movement rules.
         assert!(
             is_valid_move(&game_.board, src_x, src_y, dest_x, dest_y, color, piece_status, &game_.en_passant_target),
-            error::invalid_argument(E_INVALID_MOVE),
+            error::invalid_argument(E_INVALID_MOVE_SPECIFIC),
         );
 
         // Set the source position to none.
@@ -333,7 +339,7 @@ module addr::chess {
         maybe_old_piece;
 
         // Assert that the player's king is not in check now as a result of that move.
-        assert!(!is_king_in_check(&game_.board, color), error::invalid_state(E_INVALID_MOVE));
+        assert!(!is_king_in_check(&game_.board, color), error::invalid_state(E_INVALID_MOVE_KING_IN_CHECK));
 
         // Check if the enemy king has any valid moves now.
         let (enemy_king_x, enemy_king_y) = find_king(&game_.board, enemy_color);
@@ -509,12 +515,14 @@ module addr::chess {
             return false
         };
 
-        // Check that there is a piece in the start position and the player owns it.
-        let moving_piece = vector::borrow(vector::borrow(&board.board, (src_y as u64)), (src_x as u64));
+        // Check that there is a piece in the start position.
+        let moving_piece = borrow_piece(board, src_x, src_y);
         if (option::is_none(moving_piece)) {
             return false
         };
-        if (option::borrow(moving_piece).color == color) {
+
+        // Check that the player owns it.
+        if (option::borrow(moving_piece).color != color) {
             return false
         };
 

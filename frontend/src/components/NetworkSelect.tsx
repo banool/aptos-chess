@@ -1,7 +1,7 @@
 import { Select, Box } from "@chakra-ui/react";
 import { useGlobalState } from "../context/GlobalState";
 import { useGetChainId } from "../api/useGetNetworkChainIds";
-import { toTitleCase } from "../utils";
+import { toTitleCase } from "../utils/utils";
 import { Network } from "@aptos-labs/ts-sdk";
 
 function NetworkAndChainIdCached({

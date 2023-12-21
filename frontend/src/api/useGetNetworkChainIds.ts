@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { getLedgerInfoWithoutResponseError } from ".";
-import { getLocalStorageWithExpiry, setLocalStorageWithExpiry } from "../utils";
+import {
+  getLocalStorageWithExpiry,
+  setLocalStorageWithExpiry,
+} from "../utils/utils";
 import { Network } from "@aptos-labs/ts-sdk";
 
 const TTL = 3600000; // 1 hour
