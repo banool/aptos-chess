@@ -19,7 +19,7 @@ import { PontemWallet } from "@pontem/wallet-adapter-plugin";
 import { Network } from "@aptos-labs/ts-sdk";
 
 // It is okay for this to be publicly accessible.
-const identityConnectDappId = "16c1632d-6b59-47d0-a7e3-3b00c216425f";
+const identityConnectDappId = "7bd027c3-2f00-48a8-a2c7-31412ed82405";
 
 const queryClient = new QueryClient();
 
