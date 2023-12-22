@@ -1,5 +1,15 @@
 import { PieceType, Square } from "chess.js";
-import { BISHOP, BLACK, Game, KING, KNIGHT, PAWN, Piece, QUEEN, ROOK } from "../types/surf";
+import {
+  BISHOP,
+  BLACK,
+  Game,
+  KING,
+  KNIGHT,
+  PAWN,
+  Piece,
+  QUEEN,
+  ROOK,
+} from "../types/surf";
 
 // Convert a piece to the corresponding FEN character.
 function onChainPieceToFenChar(piece: Piece): string {
@@ -89,20 +99,27 @@ export function onChainGameToFen(game: Game): string {
   return fen;
 }
 
-export function chessJsSquareToXY(square: Square): {x: number, y: number} {
-  const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // Convert 'a'-'h' to 0-7
+export function chessJsSquareToXY(square: Square): { x: number; y: number } {
+  const file = square.charCodeAt(0) - "a".charCodeAt(0); // Convert 'a'-'h' to 0-7
   const rank = parseInt(square[1]) - 1; // Convert '1'-'8' to 0-7
-  return {x: file, y: rank}; // Invert rank to match the array indices (0 at bottom)
+  return { x: file, y: rank }; // Invert rank to match the array indices (0 at bottom)
 }
 
 export function chessJsPieceTypeToNumber(piece: PieceType): number {
   switch (piece) {
-    case 'r': return ROOK;
-    case 'n': return KNIGHT;
-    case 'b': return BISHOP;
-    case 'q': return QUEEN;
-    case 'k': return KING;
-    case 'p': return PAWN;
-    default: throw new Error(`Invalid piece type: ${piece}`);
+    case "r":
+      return ROOK;
+    case "n":
+      return KNIGHT;
+    case "b":
+      return BISHOP;
+    case "q":
+      return QUEEN;
+    case "k":
+      return KING;
+    case "p":
+      return PAWN;
+    default:
+      throw new Error(`Invalid piece type: ${piece}`);
   }
 }

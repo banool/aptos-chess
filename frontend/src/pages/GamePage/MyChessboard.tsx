@@ -9,12 +9,13 @@ import {
 } from "react-chessboard/dist/chessboard/types";
 import { useGetAccountResource } from "../../api/useGetAccountResource";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import {
-  getChessIdentifier,
-  useGlobalState,
-} from "../../context/GlobalState";
+import { getChessIdentifier, useGlobalState } from "../../context/GlobalState";
 import { Game } from "../../types/surf";
-import { chessJsPieceTypeToNumber, chessJsSquareToXY, onChainGameToFen } from "../../utils/chess";
+import {
+  chessJsPieceTypeToNumber,
+  chessJsSquareToXY,
+  onChainGameToFen,
+} from "../../utils/chess";
 import { createEntryPayload } from "@thalalabs/surf";
 import { CHESS_ABI } from "../../types/abis";
 
@@ -147,7 +148,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
       return false;
     }
 
-    let promotion: Exclude<PieceType, 'p' | 'k'>;
+    let promotion: Exclude<PieceType, "p" | "k">;
     if (piece[1].toLowerCase() === "p") {
       // This means there is no actual promotion intent, just set "q" as a dummy value.
       promotion = "q";
@@ -169,11 +170,26 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
     const source = chessJsSquareToXY(sourceSquare);
     const target = chessJsSquareToXY(targetSquare);
 
+    /*
+    // https://github.com/ThalaLabs/surf/issues/100
     const data = createEntryPayload(CHESS_ABI, {
       function: "make_move",
       typeArguments: [],
       functionArguments: [gameAddress as any, source.x, source.y, target.x, target.y, chessJsPieceTypeToNumber(promotion)],
     });
+    */
+    const data = {
+      function: getChessIdentifier(globalState, "make_move") as any,
+      typeArguments: [],
+      functionArguments: [
+        gameAddress as any,
+        source.x,
+        source.y,
+        target.x,
+        target.y,
+        chessJsPieceTypeToNumber(promotion),
+      ],
+    };
 
     console.log(`Submitting payload: ${JSON.stringify(data, null, 2)}`);
 
@@ -185,8 +201,10 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
           sender: account.address,
           data,
         });
-        await globalState.client.waitForTransaction({ transactionHash: response.hash });
-        console.log('blehhhhhhhhhhh');
+        await globalState.client.waitForTransaction({
+          transactionHash: response.hash,
+        });
+        console.log("blehhhhhhhhhhh");
         setLocalGame(localGameCopy);
         toast({
           title: "Move submitted successfully!",
@@ -203,7 +221,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
           isClosable: true,
         });
       }
-    }
+    };
 
     submit();
 
@@ -233,7 +251,9 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
           onPieceDrop={onPieceDrop}
         />
       </Box>
-      <Text marginTop={5}>{`${localGame.turn() === "w" ? "White" : "Black"} to move`}</Text>
+      <Text marginTop={5}>{`${
+        localGame.turn() === "w" ? "White" : "Black"
+      } to move`}</Text>
     </Flex>
   );
 };
