@@ -51,39 +51,39 @@ export function gameToFen(game: Game): string {
   // 3. Castling availability
   // Assuming you have some way to determine castling availability in your game object.
   // This is a simple example and may need to be adjusted based on your game logic.
-  /*
   let castling = "";
-  castling += game.white_piece_status.can_castle_kingside ? "K" : "";
-  castling += game.white_piece_status.can_castle_queenside ? "Q" : "";
-  castling += game.black_piece_status.can_castle_kingside ? "k" : "";
-  castling += game.black_piece_status.can_castle_queenside ? "q" : "";
+  if (!game.white_piece_status.king_has_moved) {
+    castling += game.white_piece_status.king_side_rook_has_moved ? "" : "K";
+    castling += game.white_piece_status.queen_side_rook_has_moved ? "" : "Q";
+  }
+  if (!game.black_piece_status.king_has_moved) {
+    castling += game.black_piece_status.king_side_rook_has_moved ? "" : "k";
+    castling += game.black_piece_status.queen_side_rook_has_moved ? "" : "q";
+  }
   castling = castling || "-"; // If no castling is available, use "-"
-  fen += " " + castling;
-  */
-  let castling = "-";
   fen += " " + castling;
 
   // 4. En passant target square
   // Assuming the en_passant_target has a property like 'square' to indicate the target square.
   // Adjust based on your actual object structure.
   let enPassantTarget = "-";
-  if (game.en_passant_target) {
+  if (game.en_passant_target.vec.length > 0) {
     const { x, y } = game.en_passant_target.vec[0]!;
     const file = String.fromCharCode(97 + x); // Convert 0-7 to 'a'-'h'
-    const rank = 8 - y; // Convert 0-7 to 8-1
+    const rank = 1 + y; // Convert 0-7 to 8-1
     enPassantTarget = file + rank;
   }
   fen += " " + enPassantTarget;
 
-  /*
   // 5. Halfmove clock
   // Assuming your Game structure tracks halfmove clock. Replace with actual property.
-  fen += " " + game.halfmove_clock.toString();
+  // fen += " " + game.halfmove_clock.toString();
+  fen += " " + game.num_half_moves_since_last_capture_or_pawn_advance;
 
   // 6. Fullmove number
   // Assuming your Game structure tracks the fullmove number. Replace with actual property.
-  fen += " " + game.fullmove_number.toString();
-  */
+  // fen += " " + game.fullmove_number.toString();
+  fen += " " + (Math.floor(game.num_half_moves / 2) + 1);
 
   return fen;
 }

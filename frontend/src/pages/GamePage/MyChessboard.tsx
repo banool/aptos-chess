@@ -1,5 +1,5 @@
 import { AspectRatio, Box, Flex, useToast } from "@chakra-ui/react";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Chessboard, ClearPremoves } from "react-chessboard";
 import { Chess, ChessInstance, Move, PieceColor, ShortMove } from "chess.js";
 import {
@@ -25,11 +25,47 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const { data: game, error } = useGetAccountResource<Game>(
+  const [localGame, setLocalGame] = useState(new Chess());
+
+  const { data: onChainGame, error } = useGetAccountResource<Game>(
     objectAddress,
     getChessResourceType(globalState, "Game"),
     { refetchInterval: 1500 },
   );
+
+  // TODO: Constantly refetch the game data from on chain. If the number of turns made
+  // on chain is greater than the number of turns made locally, then we need to update
+  // the local state. We don't just unconditionaly update the local state because we
+  // don't want to overwrite the user's moves.
+  //
+  // Determine the number of moves made in the local state by calling .history() and
+  // checking the length.
+  //
+  // If submitting a move fails, call undo.
+  useEffect(() => {
+    if (onChainGame === undefined) {
+      return;
+    }
+
+    const remoteFen = gameToFen(onChainGame);
+
+    // Determine if we need to update by comparing the halfmove count. We derive it
+    // from the FEN by looking at the fullmove count and seeing whose turn it is.
+    const numLocalFullMoves = parseInt(localGame.fen().split(" ")[5]) - 1;
+    const numRemoteFullMoves = parseInt(remoteFen.split(" ")[5]) - 1;
+    const numLocalHalfMoves =
+      numLocalFullMoves * 2 + (localGame.fen().split(" ")[1] === "w" ? 0 : 1);
+    const numRemoteHalfMoves =
+      numRemoteFullMoves * 2 + (remoteFen.split(" ")[1] === "w" ? 0 : 1);
+
+    console.log("numLocalHalfMoves", numLocalHalfMoves);
+    console.log("numRemoteHalfMoves", numRemoteHalfMoves);
+
+    if (numRemoteHalfMoves > numLocalHalfMoves) {
+      console.log("Updating local state based on the on chain state");
+      setLocalGame(new Chess(remoteFen));
+    }
+  }, [onChainGame, localGame]);
 
   // The only way I could find to properly resize the Chessboard was to make use of its
   // boardWidth property. This useEffect is used to figure out the width and height of
@@ -53,32 +89,23 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
     return () => {
       observer.disconnect();
     };
-  }, [game]);
+  }, [localGame]);
 
   if (error) {
-    return <Box>{`Error loading game: ${JSON.stringify(error)}`}</Box>;
+    return <Box p={10}>{`Error loading game: ${JSON.stringify(error)}`}</Box>;
   }
 
-  if (game === undefined) {
-    return null;
-  }
-
-  const fen = gameToFen(game);
-  let boardOrientation: BoardOrientation;
-  if (account !== null) {
+  let boardOrientation: BoardOrientation = "white";
+  if (account !== null && onChainGame !== undefined) {
     // TODO: Update this if we break the player1 is always white invariant.
-    boardOrientation = game.player1 === account.address ? "white" : "black";
-  } else {
-    // If there is no account connected, just show white at the bottom.
-    boardOrientation = "white";
+    boardOrientation =
+      onChainGame.player1 === account.address ? "white" : "black";
   }
-
-  console.log(`FEN: ${fen}`);
 
   // Because width and height are zero when first loading, we must set a minimum width
   // of 100 pixels otherwise it breaks the board (it will just show the number zero),
   // even once the width and height update.
-  console.log(`Dimensions: ${JSON.stringify(dimensions)}`);
+  // console.log(`Dimensions: ${JSON.stringify(dimensions)}`);
   const width = Math.max(
     Math.min(dimensions.width, dimensions.height) * 0.8,
     24,
@@ -90,6 +117,29 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
     boxDisplay = "none";
   }
 
+  function onPieceDrop(
+    sourceSquare: Square,
+    targetSquare: Square,
+    piece: Piece,
+  ) {
+    const localGameCopy = { ...localGame };
+    const result = localGameCopy.move({
+      from: sourceSquare,
+      to: targetSquare,
+      // TODO: Handle this.
+      promotion: "q",
+    });
+
+    // If move is null then the move was illegal.
+    if (result === null) return false;
+
+    setLocalGame(localGameCopy);
+
+    return true;
+  }
+
+  console.log(`Final FEN: ${localGame.fen()}`);
+
   return (
     <Flex
       ref={parentRef}
@@ -98,100 +148,17 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
       justifyContent="center"
       alignItems="center"
     >
-      <Box display={boxDisplay}>
+      <Box
+        display={boxDisplay}
+        filter={onChainGame === undefined ? "blur(4px)" : "none"}
+      >
         <Chessboard
-          id="main"
           boardWidth={width}
           boardOrientation={boardOrientation}
-          position={fen}
+          position={localGame.fen()}
+          onPieceDrop={onPieceDrop}
         />
-        </Box>
+      </Box>
     </Flex>
   );
 };
-
-/*
-  // TODO: We don't want to replace the chessinstance, we just want to manipulate it.
-  // what is the best way to do that with react?
-  const [chessInstance, setGame] = useState<ChessInstance | undefined>(
-    undefined,
-  );
-
-  const [queryIntervalMs, setQueryIntervalMs] = useState(1000);
-
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const toast = useToast();
-
-  const { signAndSubmitTransaction, account } = useWallet();
-
-  // todo fix this up
-  function getPlayerColor(): PieceColor | undefined {
-    if (chessInstance === undefined) {
-      return undefined;
-    }
-
-    if (chessInstance.turn() === "w") {
-      return "w";
-    }
-    return "b";
-  }
-
-  function getRefetchInterval() {
-    const value = 1000;
-    if (chessInstance === undefined) {
-      return 0;
-    }
-    // TODO: Fix this
-    if (chessInstance.turn() === getPlayerColor()) {
-      return 0;
-    }
-
-    if (globalState === undefined) {
-      return 1000;
-    }
-    return 0;
-  }
-
-  // Returns null if the move is illegal.
-  function makeAMove(move: ShortMove): Move | null {
-    const gameCopy = Object.create(chessInstance!);
-
-    let result;
-    try {
-      result = gameCopy.move(move);
-    } catch (e) {
-      result = null;
-    }
-    if (result !== null) {
-      setGame(gameCopy);
-    }
-    return result;
-  }
-
-  function onDrop(sourceSquare: Square, targetSquare: Square, piece: Piece) {
-    console.log("onDrop", sourceSquare, targetSquare, piece);
-    const move = makeAMove({
-      from: sourceSquare,
-      to: targetSquare,
-    });
-
-    // Illegal move
-    if (move === null) return false;
-
-    return true;
-  }
-
-  let main;
-  if (chessInstance === undefined) {
-    main = <Box>Loading...</Box>;
-  } else {
-    main = (
-      <Chessboard
-        id="main"
-        position={chessInstance.fen()}
-        onPieceDrop={onDrop}
-      />
-    );
-  }
-  */

@@ -104,6 +104,12 @@ module addr::chess {
         game_status: u8,
         player_resigned: bool,
         draw_offered_by: Option<u8>,
+        // In FEN terms a half move is a single piece move. A full move is when both
+        // white and black have moved. The number of full moves is just the number of
+        // half moves divided by 2 rounded down + 1.
+        num_half_moves: u8,
+        // This is used for determining the 50 / 75 move rule.
+        num_half_moves_since_last_capture_or_pawn_advance: u8,
     }
 
     struct PieceStatus has copy, drop, store {
@@ -164,6 +170,8 @@ module addr::chess {
             game_status: ACTIVE,
             player_resigned: false,
             draw_offered_by: option::none(),
+            num_half_moves: 0,
+            num_half_moves_since_last_capture_or_pawn_advance: 0,
         };
 
         let constructor_ref = object::create_object(player1_addr);
@@ -335,7 +343,9 @@ module addr::chess {
         let dest_piece = vector::borrow_mut(row, (dest_x as u64));
         let maybe_old_piece = option::swap_or_fill(dest_piece, piece);
 
-        // Drop the piece that has just been taken.
+        let piece_was_captured = option::is_some(&maybe_old_piece);
+
+        // Drop the piece that has just been taken, if any.
         maybe_old_piece;
 
         // Assert that the player's king is not in check now as a result of that move.
@@ -361,6 +371,15 @@ module addr::chess {
         // If there is an active draw offer, consider making a move either a retraction
         // or a rejection of that offer.
         game_.draw_offered_by = option::none();
+
+        // Bump the number of half moves.
+        game_.num_half_moves = game_.num_half_moves + 1;
+
+        if (piece_type == PAWN || piece_was_captured) {
+            game_.num_half_moves_since_last_capture_or_pawn_advance = 0;
+        } else {
+            game_.num_half_moves_since_last_capture_or_pawn_advance = game_.num_half_moves_since_last_capture_or_pawn_advance + 1;
+        }
     }
 
     public entry fun resign(

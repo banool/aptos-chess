@@ -60,7 +60,7 @@ dependencies:
     specifier: ^6.0.3
     version: 6.0.3
   chess.js:
-    specifier: '=0.13.4'
+    specifier: ^0.13.4
     version: 0.13.4
   fewcha-plugin-wallet-adapter:
     specifier: ^0.1.3

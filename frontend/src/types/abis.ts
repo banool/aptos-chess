@@ -164,6 +164,14 @@ export const CHESS_ABI = {
           name: "draw_offered_by",
           type: "0x1::option::Option<u8>",
         },
+        {
+          name: "num_half_moves",
+          type: "u8",
+        },
+        {
+          name: "num_half_moves_since_last_capture_or_pawn_advance",
+          type: "u8",
+        },
       ],
     },
     {
