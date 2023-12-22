@@ -5,6 +5,7 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    transform: scale(0.9);
 }
 
 .wallet-connect-button {

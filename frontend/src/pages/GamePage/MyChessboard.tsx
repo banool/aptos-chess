@@ -1,35 +1,49 @@
-import { AspectRatio, Box, Flex, useToast } from "@chakra-ui/react";
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Chessboard, ClearPremoves } from "react-chessboard";
-import { Chess, ChessInstance, Move, PieceColor, ShortMove } from "chess.js";
+import { Box, Flex, Text, useToast } from "@chakra-ui/react";
+import { useEffect, useRef, useState } from "react";
+import { Chessboard } from "react-chessboard";
+import { Chess, ChessInstance, PieceType } from "chess.js";
 import {
   BoardOrientation,
-  ChessboardProps,
   Piece,
   Square,
 } from "react-chessboard/dist/chessboard/types";
 import { useGetAccountResource } from "../../api/useGetAccountResource";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { useSearchParams } from "react-router-dom";
 import {
-  getChessResourceType,
+  getChessIdentifier,
   useGlobalState,
 } from "../../context/GlobalState";
 import { Game } from "../../types/surf";
-import { gameToFen } from "../../utils/chess";
+import { chessJsPieceTypeToNumber, chessJsSquareToXY, onChainGameToFen } from "../../utils/chess";
+import { createEntryPayload } from "@thalalabs/surf";
+import { CHESS_ABI } from "../../types/abis";
 
-export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
+export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
   const [globalState] = useGlobalState();
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
+  const toast = useToast();
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   const [localGame, setLocalGame] = useState(new Chess());
 
+  /**
+   * This returns a copy of localGame completely detached from localGame. The example
+   * code they provide does this instead:
+   *
+   * const localGameCopy = {...localGame};
+   *
+   * Unforunately changing this object actually changes localGame somehow. So we do
+   * this instead.
+   */
+  function cloneLocalGame(): ChessInstance {
+    return new Chess(localGame.fen());
+  }
+
   const { data: onChainGame, error } = useGetAccountResource<Game>(
-    objectAddress,
-    getChessResourceType(globalState, "Game"),
+    gameAddress,
+    getChessIdentifier(globalState, "Game"),
     { refetchInterval: 1500 },
   );
 
@@ -47,7 +61,7 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
       return;
     }
 
-    const remoteFen = gameToFen(onChainGame);
+    const remoteFen = onChainGameToFen(onChainGame);
 
     // Determine if we need to update by comparing the halfmove count. We derive it
     // from the FEN by looking at the fullmove count and seeing whose turn it is.
@@ -92,6 +106,7 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
   }, [localGame]);
 
   if (error) {
+    console.log("error", error);
     return <Box p={10}>{`Error loading game: ${JSON.stringify(error)}`}</Box>;
   }
 
@@ -122,22 +137,80 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
     targetSquare: Square,
     piece: Piece,
   ) {
-    const localGameCopy = { ...localGame };
+    if (account === null) {
+      toast({
+        title: "Please connect your wallet",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+      return false;
+    }
+
+    let promotion: Exclude<PieceType, 'p' | 'k'>;
+    if (piece[1].toLowerCase() === "p") {
+      // This means there is no actual promotion intent, just set "q" as a dummy value.
+      promotion = "q";
+    } else {
+      promotion = piece[1].toLowerCase()! as any;
+    }
+
+    const localGameCopy = cloneLocalGame();
+
     const result = localGameCopy.move({
       from: sourceSquare,
       to: targetSquare,
-      // TODO: Handle this.
-      promotion: "q",
+      promotion,
     });
 
     // If move is null then the move was illegal.
     if (result === null) return false;
 
-    setLocalGame(localGameCopy);
+    const source = chessJsSquareToXY(sourceSquare);
+    const target = chessJsSquareToXY(targetSquare);
+
+    const data = createEntryPayload(CHESS_ABI, {
+      function: "make_move",
+      typeArguments: [],
+      functionArguments: [gameAddress as any, source.x, source.y, target.x, target.y, chessJsPieceTypeToNumber(promotion)],
+    });
+
+    console.log(`Submitting payload: ${JSON.stringify(data, null, 2)}`);
+
+    // onPieceDrop can't be async so we fire this off in the background. If submitting
+    // the transaction fails we never update the state and nothing happens.
+    const submit = async () => {
+      try {
+        let response = await signAndSubmitTransaction({
+          sender: account.address,
+          data,
+        });
+        await globalState.client.waitForTransaction({ transactionHash: response.hash });
+        console.log('blehhhhhhhhhhh');
+        setLocalGame(localGameCopy);
+        toast({
+          title: "Move submitted successfully!",
+          status: "success",
+          duration: 4000,
+          isClosable: true,
+        });
+      } catch (error) {
+        console.log(`Error submitting move: ${JSON.stringify(error)}`);
+        toast({
+          title: "Error submitting move",
+          status: "error",
+          duration: 4000,
+          isClosable: true,
+        });
+      }
+    }
+
+    submit();
 
     return true;
   }
 
+  console.log(`Game: ${localGame.ascii()}`);
   console.log(`Final FEN: ${localGame.fen()}`);
 
   return (
@@ -147,6 +220,7 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
       flex="1"
       justifyContent="center"
       alignItems="center"
+      flexDirection="column"
     >
       <Box
         display={boxDisplay}
@@ -159,6 +233,7 @@ export const MyChessboard = ({ objectAddress }: { objectAddress: string }) => {
           onPieceDrop={onPieceDrop}
         />
       </Box>
+      <Text marginTop={5}>{`${localGame.turn() === "w" ? "White" : "Black"} to move`}</Text>
     </Flex>
   );
 };

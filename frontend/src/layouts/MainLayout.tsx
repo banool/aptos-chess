@@ -15,11 +15,6 @@ import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
 import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
 import { useGetAptToUsd } from "../api/useGetAptToUsd";
 
-export const ConnectWalletComponent = () => {
-  // Wallet icon component.
-  return <WalletSelector />;
-};
-
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -89,12 +84,8 @@ export default function MainLayout({ children }: LayoutProps) {
                 <Heading size="md">Aptos Chess</Heading>
               </Link>
             </Box>
-          </Flex>
-          <Flex justifyContent="center" alignItems="center" gap="2" flex="1">
-            {headerMiddle}
-          </Flex>
-          <Flex justifyContent="flex-end" alignItems="center" gap="2" flex="1">
-            <a href="https://github.com/banool/aptos-account-value">
+            <Box marginLeft={2}>
+            <a href="https://github.com/banool/aptos-chess">
               <IconButton
                 size="xs"
                 fontSize="sm"
@@ -116,8 +107,15 @@ export default function MainLayout({ children }: LayoutProps) {
                 aria-label={`View source code on GitHub`}
               />
             </a>
-            <NetworkSelect />
+            </Box>
+          </Flex>
+          <Flex justifyContent="center" alignItems="center" gap="2" flex="1">
+            {headerMiddle}
+          </Flex>
+          <Flex justifyContent="flex-end" alignItems="center" gap="2" flex="1">
             <ColorModeSwitcher />
+            <NetworkSelect />
+            <WalletSelector />
           </Flex>
         </Flex>
       </Box>

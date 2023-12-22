@@ -11,7 +11,8 @@ function NetworkAndChainIdCached({
   networkName: string;
   chainId: string | null;
 }) {
-  return <>{chainId ? `${toTitleCase(networkName)} - ${chainId}` : "---"}</>;
+  // return <>{chainId ? `${toTitleCase(networkName)} - ${chainId}` : "---"}</>;
+  return <>{chainId ? `${toTitleCase(networkName)}` : "---"}</>;
 }
 
 function NetworkAndChainId({ network }: { network: Network }) {

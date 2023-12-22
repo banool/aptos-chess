@@ -1,7 +1,8 @@
-import { BLACK, Game, Piece } from "../types/surf";
+import { PieceType, Square } from "chess.js";
+import { BISHOP, BLACK, Game, KING, KNIGHT, PAWN, Piece, QUEEN, ROOK } from "../types/surf";
 
 // Convert a piece to the corresponding FEN character.
-function pieceToFenChar(piece: Piece): string {
+function onChainPieceToFenChar(piece: Piece): string {
   const isBlack = piece.color === BLACK;
   // This is the same order as the piece types in the Move module.
   const fenChars = ["R", "N", "B", "Q", "K", "P"];
@@ -15,7 +16,7 @@ function pieceToFenChar(piece: Piece): string {
 // - En passant target square.
 // - Halfmove clock.
 // - Fullmove number.
-export function gameToFen(game: Game): string {
+export function onChainGameToFen(game: Game): string {
   const board = game.board.board;
 
   let fen = "";
@@ -36,7 +37,7 @@ export function gameToFen(game: Game): string {
           fen += emptyCount.toString();
           emptyCount = 0;
         }
-        fen += pieceToFenChar(inner);
+        fen += onChainPieceToFenChar(inner);
       }
     }
 
@@ -86,4 +87,22 @@ export function gameToFen(game: Game): string {
   fen += " " + (Math.floor(game.num_half_moves / 2) + 1);
 
   return fen;
+}
+
+export function chessJsSquareToXY(square: Square): {x: number, y: number} {
+  const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // Convert 'a'-'h' to 0-7
+  const rank = parseInt(square[1]) - 1; // Convert '1'-'8' to 0-7
+  return {x: file, y: rank}; // Invert rank to match the array indices (0 at bottom)
+}
+
+export function chessJsPieceTypeToNumber(piece: PieceType): number {
+  switch (piece) {
+    case 'r': return ROOK;
+    case 'n': return KNIGHT;
+    case 'b': return BISHOP;
+    case 'q': return QUEEN;
+    case 'k': return KING;
+    case 'p': return PAWN;
+    default: throw new Error(`Invalid piece type: ${piece}`);
+  }
 }

@@ -11,5 +11,5 @@ export const GamePage = () => {
     );
   }
 
-  return <MyChessboard objectAddress={game_address} />;
+  return <MyChessboard gameAddress={game_address} />;
 };

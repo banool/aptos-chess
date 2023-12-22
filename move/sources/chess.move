@@ -34,7 +34,7 @@ module addr::chess {
     /// You tried to make an invalid move based on that piece's specific movement rules.
     const E_INVALID_MOVE_SPECIFIC: u64 = 1;
 
-    /// This Move would put your king in check.
+    /// This Move would leave your king in check.
     const E_INVALID_MOVE_KING_IN_CHECK: u64 = 2;
 
     /// You tried to make a move out of turn.
