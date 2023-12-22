@@ -17,3 +17,8 @@ Move a piece as player 2 (profile = player2), in this case the black pawn from e
 ```
 aptos move run --profile player2 --assume-yes --function-id 0x`yq .profiles.local.account < .aptos/config.yaml`::`cat Move.toml | grep -o 'chess[0-9]*'`::make_move --args address:0x7aed0bc67027a8dc2b0de6de707b6a4e4d870bafab794502ea72fbe99d44d9ae u8:4 u8:6 u8:4 u8:4 u8:1
 ```
+
+To publish to testnet at a new address:
+```
+yes '' | aptos init --profile testnetpublish --assume-yes --network testnet && aptos move publish --profile testnetpublish --assume-yes --named-addresses addr=testnetpublish
+```

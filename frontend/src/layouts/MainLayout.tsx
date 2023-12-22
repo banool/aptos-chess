@@ -19,6 +19,8 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+// TODO: Handle when wallet and site disagree on network.
+
 // TODO: Figure out how to make IconButton padding for GitHub button the same
 // as the color switcher button.
 export default function MainLayout({ children }: LayoutProps) {

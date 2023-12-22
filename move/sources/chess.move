@@ -19,7 +19,6 @@ module addr::chess {
     use std::option::{Self, Option};
     use std::signer;
     use std::vector;
-    // use aptos_std::debug;
     use aptos_framework::event;
     use aptos_framework::object::{Self, Object};
 
@@ -319,6 +318,22 @@ module addr::chess {
         // If the piece is a pawn and it made it to the back rank, promote it.
         if (piece_type == PAWN && ((color == WHITE && dest_y == 7) || (color == BLACK && dest_y == 0))) {
             piece.piece_type = promote_to;
+        };
+
+        // If the piece is a pawn and it moved to the en passant target, capture the
+        // enemy pawn.
+        if (piece_type == PAWN && option::is_some(&game_.en_passant_target)) {
+            let en_passant_target = option::borrow(&game_.en_passant_target);
+            if (dest_x == en_passant_target.x && dest_y == en_passant_target.y) {
+                // Remove the enemy pawn.
+                let enemy_pawn_y = if (color == WHITE) { dest_y - 1 } else { dest_y + 1 };
+                let enemy_pawn = {
+                    let row = vector::borrow_mut(&mut game_.board.board, (enemy_pawn_y as u64));
+                    let enemy_pawn = vector::borrow_mut(row, (dest_x as u64));
+                    option::extract(enemy_pawn)
+                };
+                enemy_pawn;
+            };
         };
 
         // If the piece moved is a pawn and it moved two spaces, record that there is a
@@ -1343,6 +1358,8 @@ module addr::chess {
         assert!(is_valid_pawn_move(&game_.board, 1, 3, 0, 2, BLACK, &option::some(EnPassantTarget { x: 0, y: 2 })), 13);
 
         // TODO: Test pawn promotion works.
+
+        // TODO: Test en passant works.
     }
 
     // TODO: Surely this exists in a math module somewhere.

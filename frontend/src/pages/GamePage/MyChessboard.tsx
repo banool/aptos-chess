@@ -149,7 +149,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
     }
 
     let promotion: Exclude<PieceType, "p" | "k">;
-    if (piece[1].toLowerCase() === "p") {
+    if (piece[1].toLowerCase() === "p" || piece[1].toLowerCase() === "k") {
       // This means there is no actual promotion intent, just set "q" as a dummy value.
       promotion = "q";
     } else {
