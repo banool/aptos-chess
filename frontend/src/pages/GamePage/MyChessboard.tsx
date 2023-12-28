@@ -62,23 +62,23 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
       return;
     }
 
-    const remoteFen = onChainGameToFen(onChainGame);
+    const onChainFen = onChainGameToFen(onChainGame);
 
     // Determine if we need to update by comparing the halfmove count. We derive it
     // from the FEN by looking at the fullmove count and seeing whose turn it is.
     const numLocalFullMoves = parseInt(localGame.fen().split(" ")[5]) - 1;
-    const numRemoteFullMoves = parseInt(remoteFen.split(" ")[5]) - 1;
+    const numRemoteFullMoves = parseInt(onChainFen.split(" ")[5]) - 1;
     const numLocalHalfMoves =
       numLocalFullMoves * 2 + (localGame.fen().split(" ")[1] === "w" ? 0 : 1);
     const numRemoteHalfMoves =
-      numRemoteFullMoves * 2 + (remoteFen.split(" ")[1] === "w" ? 0 : 1);
+      numRemoteFullMoves * 2 + (onChainFen.split(" ")[1] === "w" ? 0 : 1);
 
     console.log("numLocalHalfMoves", numLocalHalfMoves);
     console.log("numRemoteHalfMoves", numRemoteHalfMoves);
 
     if (numRemoteHalfMoves > numLocalHalfMoves) {
       console.log("Updating local state based on the on chain state");
-      setLocalGame(new Chess(remoteFen));
+      setLocalGame(new Chess(onChainFen));
     }
   }, [onChainGame, localGame]);
 
