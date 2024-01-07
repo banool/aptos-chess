@@ -1,19 +1,10 @@
-import {
-  Box,
-  Text,
-  Button,
-  Input,
-  Flex,
-  useToast,
-  Link,
-} from "@chakra-ui/react";
+import { Box, Text, Button, Input, Flex, useToast } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { getChessIdentifier, useGlobalState } from "../../context/GlobalState";
 import { AccountAddress, TransactionResponseType } from "@aptos-labs/ts-sdk";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Link as ReactRouterLink } from "react-router-dom";
-import { Link as ChakraLink, LinkProps } from "@chakra-ui/react";
-import assert from "assert";
+import { Link as ChakraLink } from "@chakra-ui/react";
 
 export const Body = () => {
   const { account, signAndSubmitTransaction } = useWallet();
@@ -49,10 +40,6 @@ export const Body = () => {
       if (waitResponse.type !== TransactionResponseType.User) {
         throw new Error("Transaction was unexpectedly the wrong type");
       }
-
-      console.log(JSON.stringify(waitResponse, null, 2));
-      console.log(JSON.stringify(waitResponse.events, null, 2));
-      console.log(JSON.stringify(waitResponse.events[0].data, null, 2));
 
       // TODO: A function to get the objects created in a txn would be nice. I don't
       // believe such a function exists still, so I use the event I emit instead for
