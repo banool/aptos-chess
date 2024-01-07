@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  Box,
-  Flex,
-  Heading,
-  IconButton,
-  Text,
-  Tooltip,
-} from "@chakra-ui/react";
+import { Box, Flex, Heading, IconButton, Text } from "@chakra-ui/react";
 import { ColorModeSwitcher } from "../components/ColorModeSwitcher";
 import NetworkSelect from "../components/NetworkSelect";
 import { Link } from "react-router-dom";
@@ -64,6 +57,10 @@ export default function MainLayout({ children }: LayoutProps) {
       "🤧",
       "😐",
       "😳",
+      "🏀",
+      "🏈",
+      "⚽",
+      "🎾",
     ];
     const randomIndex = Math.floor(Math.random() * emojis.length);
     return emojis[randomIndex];

@@ -33,3 +33,6 @@ src/types/abis.ts
 todo:
 - when someone creates a game with someone else, there should be a max time to accept the game. if they don't accept it, it will go into some "expired invites" list. if they do accept it by playing a move, it will move into an "ongoing" list.
 - looking up games you created / were invited to is easy ish (assuming I can get it to paginate backwards) but looking up the state of those games in a single query is impossible. I would need to get a page, check the status of those games by querying the resources at that object (or events emitted by that object), get a new page if there aren't enough active games, and so on. it might be necessary to build a custom indexer.
+
+## Notes
+Be careful about updating the GraphQL codegen deps because of this issue: https://github.com/dotansimha/graphql-code-generator/issues/9046.

@@ -1,156 +1,121 @@
 import {
   Box,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  TableContainer,
-  Tooltip,
   Text,
   Button,
-  Td,
   Input,
-  Link,
   Flex,
-  Card,
-  CardBody,
-  CardHeader,
-  Center,
-  CardFooter,
-  Heading,
-  Spacer,
   useToast,
-  Select,
-  Divider,
+  Link,
 } from "@chakra-ui/react";
-import React, { ReactNode, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useGlobalState } from "../../context/GlobalState";
-import { AccountAddress } from "@aptos-labs/ts-sdk";
-import { sum } from "../../utils/utils";
+import React, { useState } from "react";
+import { getChessIdentifier, useGlobalState } from "../../context/GlobalState";
+import { AccountAddress, TransactionResponseType } from "@aptos-labs/ts-sdk";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { Link as ReactRouterLink } from "react-router-dom";
+import { Link as ChakraLink, LinkProps } from "@chakra-ui/react";
+import assert from "assert";
 
 export const Body = () => {
+  const { account, signAndSubmitTransaction } = useWallet();
   const [globalState] = useGlobalState();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [addresses, updateAddresses] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [gameAddress, setGameAddress] = useState("");
+  const toast = useToast();
 
-  const updateAddressesWrapper = useCallback(
-    (newAddresses: string[]) => {
-      updateAddresses(newAddresses);
-      let paramUpdate: any = {};
-      if (newAddresses.length > 0) {
-        paramUpdate.addresses = newAddresses.join(",");
-      }
-      setSearchParams((prev) => {
-        return { ...prev, ...paramUpdate };
+  const handleInputChange = (e: {
+    target: { value: React.SetStateAction<string> };
+  }) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleSubmit = async () => {
+    const data = {
+      function: getChessIdentifier(globalState, "create_game") as any,
+      typeArguments: [],
+      functionArguments: [inputValue],
+    };
+
+    try {
+      let submissionResponse = await signAndSubmitTransaction({
+        sender: account!.address,
+        data,
       });
-    },
-    [setSearchParams],
-  );
+      const waitResponse = await globalState.client.waitForTransaction({
+        transactionHash: submissionResponse.hash,
+        options: { checkSuccess: true, waitForIndexer: true },
+      });
 
-  // Set the addresses based on the query params.
-  useEffect(() => {
-    const addressesRaw = searchParams.get("addresses");
-    if (addressesRaw) {
-      updateAddressesWrapper(addressesRaw.split(","));
+      // Needed to make the type checker happy.
+      if (waitResponse.type !== TransactionResponseType.User) {
+        throw new Error("Transaction was unexpectedly the wrong type");
+      }
+
+      console.log(JSON.stringify(waitResponse, null, 2));
+      console.log(JSON.stringify(waitResponse.events, null, 2));
+      console.log(JSON.stringify(waitResponse.events[0].data, null, 2));
+
+      // TODO: A function to get the objects created in a txn would be nice. I don't
+      // believe such a function exists still, so I use the event I emit instead for
+      // now.
+
+      const objectAddress = waitResponse.events[0].data.object_address;
+      setGameAddress(objectAddress);
+    } catch (error) {
+      console.log(`Error creating game: ${JSON.stringify(error)}`);
+      toast({
+        title: "Error creating game",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
     }
-  }, [searchParams, updateAddressesWrapper]);
-
-  const handleOnInputPaste = (event: any) => {
-    event.preventDefault();
-    const pasted = event.clipboardData.getData("text/plain");
-    const newAddresses = pasted.split(/[\s,\n]+/);
-    updateAddressesWrapper(newAddresses);
   };
 
-  const getRowFrame = (
-    address: string,
-    index: number,
-    tdElements: ReactNode,
-  ) => {
-    const onPaste = index === 0 ? handleOnInputPaste : undefined;
-    return (
-      <Tr key={index}>
-        <Td w="1px">
-          <Input
-            value={address}
-            minW="675px"
-            onPaste={onPaste}
-            onChange={(event) => {
-              let newAddresses = [...addresses];
-              // Handle removing an item if the address is changed to an empty string.
-              if (event.target.value === "") {
-                newAddresses.splice(index, 1);
-              } else {
-                newAddresses[index] = event.target.value;
-              }
-              updateAddressesWrapper(newAddresses);
-            }}
-            placeholder="0x96daeefd..."
-          />
-        </Td>
-        {tdElements}
-      </Tr>
-    );
-  };
+  const inputValid = AccountAddress.isValid({
+    input: inputValue,
+    strict: true,
+  }).valid;
 
-  const clearButton = (
-    <Button
-      onClick={() => {
-        updateAddressesWrapper([]);
-      }}
-      disabled={addresses.length === 0}
-    >
-      Clear Addresses
-    </Button>
-  );
+  const buttonEnabled = inputValid && account !== null;
 
+  // TODO: Support ANS.
   return (
-    <Box>
-      <Flex p={2} alignContent="center">
-        <Spacer />
-        <Box w="1%" />
-        {clearButton}
-        <Spacer />
-      </Flex>
-      <TableContainer p={4} w="100%">
-        <Table
-          variant="simple"
-          // This makes the border for the last row thicker.
-          sx={{
-            "& tr:nth-last-of-type(2) td": {
-              borderBottomWidth: "3px",
-            },
-          }}
+    <Box p={10}>
+      <Box paddingBottom={3}>
+        <Text>{"Who would you like to play a game with?"}</Text>
+      </Box>
+      <Flex alignContent="center">
+        <Input
+          placeholder="Enter account address (ANS not supported right now sorry!!)"
+          value={inputValue}
+          onChange={handleInputChange}
+          mb={4}
+        />
+        <Box ml={4} />
+        <Button
+          paddingLeft={6}
+          paddingRight={6}
+          onClick={handleSubmit}
+          isDisabled={!buttonEnabled}
         >
-          <Thead>
-            <Tr>
-              <Th>Addresses</Th>
-              <Th>Total Value </Th>
-              <Th>
-                Known Assets{" "}
-                <Tooltip
-                  label="The number of assets for which we could determine the value."
-                  placement="auto"
-                >
-                  ⓘ
-                </Tooltip>
-              </Th>
-              <Th>
-                Unknown Assets{" "}
-                <Tooltip
-                  label="The number of assets for which we could not determine the value. These are not included in the total value of the account."
-                  placement="auto"
-                >
-                  ⓘ
-                </Tooltip>
-              </Th>
-              <Th>Details</Th>
-            </Tr>
-          </Thead>
-        </Table>
-      </TableContainer>
+          Create Game
+        </Button>
+      </Flex>
+      {gameAddress && (
+        <Box>
+          <Text>
+            {"Game created at "}
+            <ChakraLink
+              color="lightblue"
+              as={ReactRouterLink}
+              to={`/${gameAddress}?network=${globalState.network}`}
+            >
+              {gameAddress}
+            </ChakraLink>
+            {"."}
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 };
