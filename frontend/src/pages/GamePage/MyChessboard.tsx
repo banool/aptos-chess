@@ -16,8 +16,12 @@ import {
   chessJsSquareToXY,
   onChainGameToFen,
 } from "../../utils/chess";
-import { createEntryPayload } from "@thalalabs/surf";
-import { CHESS_ABI } from "../../types/abis";
+import {
+  STATUS_ACTIVE,
+  STATUS_BLACK_WON,
+  STATUS_DRAW,
+  STATUS_WHITE_WON,
+} from "../../constants";
 
 export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
   const [globalState] = useGlobalState();
@@ -111,11 +115,19 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
     return <Box p={10}>{`Error loading game: ${JSON.stringify(error)}`}</Box>;
   }
 
+  let userIsPlayer = false;
   let boardOrientation: BoardOrientation = "white";
   if (account !== null && onChainGame !== undefined) {
     // TODO: Update this if we break the player1 is always white invariant.
-    boardOrientation =
-      onChainGame.player1 === account.address ? "white" : "black";
+    if (onChainGame.player1 === account.address) {
+      boardOrientation = "white";
+      userIsPlayer = true;
+    } else if (onChainGame.player2 === account.address) {
+      boardOrientation = "black";
+      userIsPlayer = true;
+    } else {
+      boardOrientation = "white";
+    }
   }
 
   // Because width and height are zero when first loading, we must set a minimum width
@@ -231,6 +243,32 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
   console.log(`Game: ${localGame.ascii()}`);
   console.log(`Final FEN: ${localGame.fen()}`);
 
+  var bottom = [];
+  if (!userIsPlayer) {
+    bottom.push(
+      <Text marginTop={2} fontSize={12}>
+        {"Spectating..."}
+      </Text>,
+    );
+  }
+  if (onChainGame?.game_status === STATUS_ACTIVE) {
+    bottom.push(
+      <Text marginTop={5}>{`${
+        localGame.turn() === "w" ? "White" : "Black"
+      } to move`}</Text>,
+    );
+  } else {
+    let text;
+    if (onChainGame?.game_status === STATUS_WHITE_WON) {
+      text = "White won!";
+    } else if (onChainGame?.game_status === STATUS_BLACK_WON) {
+      text = "Black won!";
+    } else if (onChainGame?.game_status === STATUS_DRAW) {
+      text = "Game was a draw!";
+    }
+    bottom.push(<Text marginTop={2}>{text}</Text>);
+  }
+
   return (
     <Flex
       ref={parentRef}
@@ -249,11 +287,14 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
           boardOrientation={boardOrientation}
           position={localGame.fen()}
           onPieceDrop={onPieceDrop}
+          arePiecesDraggable={
+            userIsPlayer && onChainGame?.game_status === STATUS_ACTIVE
+          }
+          arePremovesAllowed={false}
         />
       </Box>
-      <Text marginTop={5}>{`${
-        localGame.turn() === "w" ? "White" : "Black"
-      } to move`}</Text>
+
+      {bottom}
     </Flex>
   );
 };

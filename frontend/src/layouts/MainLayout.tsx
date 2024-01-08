@@ -7,6 +7,8 @@ import "../css/wallet_selector.css";
 import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
 import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
 import { useGetAptToUsd } from "../api/useGetAptToUsd";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useGlobalState } from "../context/GlobalState";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +20,8 @@ interface LayoutProps {
 // as the color switcher button.
 export default function MainLayout({ children }: LayoutProps) {
   // const { isLoading, aptToUsd, error } = useGetAptToUsd();
+  const { network } = useWallet();
+  const [globalState] = useGlobalState();
 
   let headerMiddle = null;
 
@@ -71,6 +75,26 @@ export default function MainLayout({ children }: LayoutProps) {
       {getRandomFaceEmoji().repeat(3)}
     </Text>
   );
+
+  let walletNetworkName: string | undefined = network?.name;
+  if (network?.name.toLowerCase().startsWith("local")) {
+    walletNetworkName = "local";
+  }
+
+  if (
+    walletNetworkName &&
+    walletNetworkName.toLowerCase() !== globalState.network.toLowerCase()
+  ) {
+    children = (
+      <Box display="flex" justifyContent="center" alignItems="center">
+        <Box paddingTop={10} textAlign="center">
+          <Text fontSize={24} fontWeight="bold">
+            {`Please switch your wallet to network: ${globalState.network}`}
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
 
   // Courtesy of https://stackoverflow.com/q/75175422/3846032.
   const body = (
