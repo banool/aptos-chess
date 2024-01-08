@@ -1,18 +1,7 @@
 // I use a coordinate system where 0,0 is the white rook in the bottom left corner.
 // Or in standard chess notation, 0,0 is a1.
 
-// TODO:
-// - Add support for draw by repetition
-// - Add support for draw by insufficient material
-// - Add support for various time settings
-//   (full game limits, per move limits, regaining time on move, etc)
-// - Add support for draw by time
-// - Any TODOs down in the comments.
-// - Add support for custom extensions. We could define a trait that has a bunch of
-//   hook functions that the custom extension can implement, e.g. relating to the
-//   starting position of pieces, move validity, etc.
-
-// todo, check out if there is some kind of ascii chess frontend, that'd be neat
+// All TODOs have been moved to GitHub issues.
 
 module addr::chess {
     use std::error;
@@ -116,10 +105,6 @@ module addr::chess {
 
     // game_created_events: EventHandle<GameCreatedEvent>,
 
-    // TODO: With event v2 it seems like there is no emitter anymore, either the
-    // person calling the function or the object it was emitted from, so we just
-    // include everything here for simplicity's sake. Confirm whether this is
-    // actually necessary.
     #[event]
     struct GameCreatedEvent has drop, store {
         // The address of the creator.
@@ -380,15 +365,12 @@ module addr::chess {
         // If the the enemy king is in check, has no valid moves itself, and the enemy
         // can't take a piece to get their king out of check, that is checkmate.
         if (!enemy_king_has_valid_moves && is_king_in_check(&game_.board, enemy_color)) {
-            // TODO: Handle when the opponent's king has no valid moves and is in check but another
-            // piece of the opponent's can take the piece that is putting the king in check.
+            // TODO: https://github.com/banool/aptos-chess/issues/5
             game_.game_status = if (color == WHITE) { WHITE_WON } else { BLACK_WON };
             return
         };
 
-        // TODO: Check for stalemate. This is the case if the enemy king is not in
-        // check, but the enemy cannot move any piece / cannot do so without putting
-        // their king in check. This is complex, so I'm avoiding this for now.
+        // TODO: Check for stalemate: https://github.com/banool/aptos-chess/issues/6
 
         // If there is an active draw offer, consider making a move either a retraction
         // or a rejection of that offer.
@@ -420,7 +402,7 @@ module addr::chess {
         player: &signer,
         game: Object<Game>,
     ) acquires Game {
-        // TODO: This is incomplete
+        // TODO: This is incomplete: https://github.com/banool/aptos-chess/issues/7
         let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let player_addr = signer::address_of(player);
@@ -434,7 +416,7 @@ module addr::chess {
         player: &signer,
         game: Object<Game>,
     ) acquires Game {
-        // TODO: This is incomplete
+        // TODO: This is incomplete: https://github.com/banool/aptos-chess/issues/7
         let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
         let player_addr = signer::address_of(player);
@@ -656,8 +638,7 @@ module addr::chess {
                 let piece = option::borrow(piece_opt);
 
                 if (piece.color == opponent) {
-                    // TODO: I don't think the PieceStatus matters here but double check.
-                    // TODO: Same thing with EnPassantTarget. Actually EnPassantTarget probably does matter.
+                    // TODO: https://github.com/banool/aptos-chess/issues/8
                     let piece_status = PieceStatus {
                         queen_side_rook_has_moved: false,
                         king_side_rook_has_moved: false,
@@ -762,8 +743,7 @@ module addr::chess {
             let new_x = src_x;
             let new_y = src_y;
 
-            // TODO: Replace this with overflow safe ceil / floor functions.
-            // Bounded math in other words.
+            // TODO: Use bounded math: https://github.com/banool/aptos-chess/issues/9
 
             if (*delta_x == RIGHT && src_x < 7) {
                 new_x = new_x + 1;
@@ -792,7 +772,7 @@ module addr::chess {
         return false
     }
 
-    // TODO: Test near the edge of the board.
+    // https://github.com/banool/aptos-chess/issues/10
     #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
     fun test_king_has_valid_moves(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
         let player1_addr = signer::address_of(player1);
@@ -1478,13 +1458,9 @@ module addr::chess {
         // passant.
         move_piece(&mut game_.board, 1, 6, 1, 3);
         assert!(is_valid_pawn_move(&game_.board, 1, 3, 0, 2, BLACK, &option::some(EnPassantTarget { x: 0, y: 2 })), 13);
-
-        // TODO: Test pawn promotion works.
-
-        // TODO: Test en passant works.
     }
 
-    // TODO: Surely this exists in a math module somewhere.
+    // Surely this exists in a math module somewhere.
     fun difference(a: u8, b: u8): u8 {
         if (a > b) {
             return a - b
