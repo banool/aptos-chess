@@ -27,11 +27,8 @@ module addr::chess {
     #[test_only]
     use aptos_framework::account;
 
-    /// You tried to make an invalid move based on basic movement rules.
-    const E_INVALID_MOVE_BASIC: u64 = 0;
-
     /// You tried to make an invalid move based on that piece's specific movement rules.
-    const E_INVALID_MOVE_SPECIFIC: u64 = 1;
+    const E_INVALID_MOVE: u64 = 1;
 
     /// This Move would leave your king in check.
     const E_INVALID_MOVE_KING_IN_CHECK: u64 = 2;
@@ -78,12 +75,12 @@ module addr::chess {
     const WHITE_WON: u8 = 2;
     const BLACK_WON: u8 = 3;
 
-    struct Piece has drop, store {
+    struct Piece has copy, drop, store {
         color: u8,
         piece_type: u8,
     }
 
-    struct Board has store {
+    struct Board has copy, drop, store {
         board: vector<vector<Option<Piece>>>,
     }
 
@@ -289,19 +286,17 @@ module addr::chess {
             piece_status = game_.black_piece_status;
         };
 
-        // Assert the move passes some basic validity checks.
-        assert!(is_valid_basic(&game_.board, src_x, src_y, dest_x, dest_y, color), error::invalid_argument(E_INVALID_MOVE_BASIC));
+        // Assert the move is valid based on the piece's movement rules.
+        assert!(
+            is_valid_move(&game_.board, src_x, src_y, dest_x, dest_y, color, piece_status, &game_.en_passant_target, false),
+            error::invalid_argument(E_INVALID_MOVE),
+        );
 
         // Get the moving piece. At this point we have asserted that there is a piece
         // in the starting position, so we can unwrap the option.
         let moving_piece = option::borrow(borrow_piece(&game_.board, src_x, src_y));
         let piece_type = moving_piece.piece_type;
 
-        // Assert the move is valid based on the piece's movement rules.
-        assert!(
-            is_valid_move(&game_.board, src_x, src_y, dest_x, dest_y, color, piece_status, &game_.en_passant_target),
-            error::invalid_argument(E_INVALID_MOVE_SPECIFIC),
-        );
 
         // Set the source position to none.
         let piece = {
@@ -367,25 +362,11 @@ module addr::chess {
         assert!(!is_king_in_check(&game_.board, color), error::invalid_state(E_INVALID_MOVE_KING_IN_CHECK));
 
         // Check if the enemy king has any valid moves now.
-        let (enemy_king_x, enemy_king_y) = find_king(&game_.board, enemy_color);
-        let enemy_king_has_valid_moves = king_has_valid_moves(&game_.board, enemy_king_x, enemy_king_y, enemy_color);
-
-        // If the king has no valid moves and the king is in check, that is checkmate.
-        if (!enemy_king_has_valid_moves && is_king_in_check(&game_.board, enemy_color)) {
-            game_.game_status = if (color == WHITE) { WHITE_WON } else { BLACK_WON };
-            return
-        };
-
-        // TODO: Check for stalemate. This is the case if the enemy king is not in
-        // check, but the enemy cannot move any piece / cannot do so without putting
-        // their king in check. This is complex, so I'm avoiding this for now.
+        let (enemy_src_x, enemy_src_y) = find_king(&game_.board, enemy_color);
+        let enemy_king_has_valid_moves = king_has_valid_moves(&game_.board, enemy_src_x, enemy_src_y, enemy_color);
 
         // Update whose turn it is.
         game_.is_white_turn = !game_.is_white_turn;
-
-        // If there is an active draw offer, consider making a move either a retraction
-        // or a rejection of that offer.
-        game_.draw_offered_by = option::none();
 
         // Bump the number of half moves.
         game_.num_half_moves = game_.num_half_moves + 1;
@@ -394,7 +375,24 @@ module addr::chess {
             game_.num_half_moves_since_last_capture_or_pawn_advance = 0;
         } else {
             game_.num_half_moves_since_last_capture_or_pawn_advance = game_.num_half_moves_since_last_capture_or_pawn_advance + 1;
-        }
+        };
+
+        // If the the enemy king is in check, has no valid moves itself, and the enemy
+        // can't take a piece to get their king out of check, that is checkmate.
+        if (!enemy_king_has_valid_moves && is_king_in_check(&game_.board, enemy_color)) {
+            // TODO: Handle when the opponent's king has no valid moves and is in check but another
+            // piece of the opponent's can take the piece that is putting the king in check.
+            game_.game_status = if (color == WHITE) { WHITE_WON } else { BLACK_WON };
+            return
+        };
+
+        // TODO: Check for stalemate. This is the case if the enemy king is not in
+        // check, but the enemy cannot move any piece / cannot do so without putting
+        // their king in check. This is complex, so I'm avoiding this for now.
+
+        // If there is an active draw offer, consider making a move either a retraction
+        // or a rejection of that offer.
+        game_.draw_offered_by = option::none();
     }
 
     public entry fun resign(
@@ -505,13 +503,43 @@ module addr::chess {
         color: u8,
         piece_status: PieceStatus,
         en_passant_target: &Option<EnPassantTarget>,
+        // If set, consider a move valid even if there is a friendly piece at the
+        // destination. Useful for checking if one piece defends another.
+        ignore_same_color_piece_at_dest: bool,
     ): bool {
+        // Assert the move passes some basic validity checks.
+        if (!is_valid_basic(board, src_x, src_y, dest_x, dest_y, color)) {
+            return false
+        };
+
+        let board = if (ignore_same_color_piece_at_dest) {
+            // Make a clone of the board so we can remove the dest piece if
+            // ignore_piece_at_dest is true.
+            let board_clone = *board;
+
+            // Remove the piece at the destination in the clone if it is the same color
+            // as the piece we're moving.
+            let dest_piece_option = borrow_piece_mut(&mut board_clone, dest_x, dest_y);
+            if (option::is_some(dest_piece_option)) {
+                if (option::borrow(dest_piece_option).color == color) {
+                    option::extract(dest_piece_option);
+                };
+            };
+
+            &board_clone
+        } else {
+            // No need to clone it, just use the board that was passed in.
+            board
+        };
+
         let moving_piece = option::borrow(borrow_piece(board, src_x, src_y));
         let piece_type = moving_piece.piece_type;
 
         // Assert the move is valid based on the piece's movement rules.
         let valid_move: bool;
         if (piece_type == KING) {
+            // We don't check if the king would be in check after this move, we do that
+            // later.
             valid_move = (
                 is_valid_king_move_basic(board, src_x, src_y, dest_x, dest_y, color) ||
                 is_valid_king_move_castle(board, src_x, src_y, dest_x, dest_y, color, &piece_status)
@@ -530,6 +558,9 @@ module addr::chess {
             // This should never be possible.
             abort 0
         };
+
+        // No need to put the piece back if ignore_piece_at_dest was true, we were only
+        // working with a clone.
 
         valid_move
     }
@@ -613,26 +644,28 @@ module addr::chess {
 
     // This function checks whether the king of a particular color would be in check if
     // it were at the given position.
-    fun is_position_in_check(board: &Board, piece_x: u8, piece_y: u8, color: u8): bool {
+    fun is_position_in_check(board: &Board, position_x: u8, position_y: u8, color: u8): bool {
         let opponent = if (color == WHITE) { BLACK } else { WHITE };
 
         let x: u8 = 0;
         let y: u8 = 0;
 
         loop {
-            let piece_opt = vector::borrow(vector::borrow(&board.board, (y as u64)), (x as u64));
+            let piece_opt = borrow_piece(board, x, y);
             if (option::is_some(piece_opt)) {
                 let piece = option::borrow(piece_opt);
 
                 if (piece.color == opponent) {
                     // TODO: I don't think the PieceStatus matters here but double check.
-                    // TODO: Same thing with EnPassantTarget
+                    // TODO: Same thing with EnPassantTarget. Actually EnPassantTarget probably does matter.
                     let piece_status = PieceStatus {
                         queen_side_rook_has_moved: false,
                         king_side_rook_has_moved: false,
                         king_has_moved: false,
                     };
-                    if (is_valid_move(board, x, y, piece_x, piece_y, opponent, piece_status, &option::none())) {
+
+                    // If x,y == position_x, position_y this will return false due to is_valid_basic.
+                    if (is_valid_move(board, x, y, position_x, position_y, opponent, piece_status, &option::none(), true)) {
                         return true
                     };
                 };
@@ -652,8 +685,8 @@ module addr::chess {
     }
 
     fun is_king_in_check(board: &Board, color: u8): bool {
-        let (king_x, king_y) = find_king(board, color);
-        is_position_in_check(board, king_x, king_y, color)
+        let (src_x, src_y) = find_king(board, color);
+        is_position_in_check(board, src_x, src_y, color)
     }
 
     #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
@@ -692,7 +725,7 @@ module addr::chess {
         assert!(!is_king_in_check(&game_.board, WHITE), 6);
     }
 
-    fun king_has_valid_moves(board: &Board, king_x: u8, king_y: u8, player: u8): bool {
+    fun king_has_valid_moves(board: &Board, src_x: u8, src_y: u8, player: u8): bool {
         let dx: vector<u8> = vector::empty();
         let dy: vector<u8> = vector::empty();
 
@@ -726,28 +759,28 @@ module addr::chess {
         while (i < size) {
             let delta_x = vector::borrow(&dx, i);
             let delta_y = vector::borrow(&dy, i);
-            let new_x = king_x;
-            let new_y = king_y;
+            let new_x = src_x;
+            let new_y = src_y;
 
             // TODO: Replace this with overflow safe ceil / floor functions.
             // Bounded math in other words.
 
-            if (*delta_x == RIGHT && king_x < 7) {
+            if (*delta_x == RIGHT && src_x < 7) {
                 new_x = new_x + 1;
             };
-            if (*delta_x == LEFT && king_x > 0) {
+            if (*delta_x == LEFT && src_x > 0) {
                 new_x = new_x - 1;
             };
 
-            if (*delta_y == UP && king_y < 7) {
+            if (*delta_y == UP && src_y < 7) {
                 new_y = new_y + 1;
             };
-            if (*delta_y == DOWN && king_y > 0) {
+            if (*delta_y == DOWN && src_y > 0) {
                 new_y = new_y - 1;
             };
 
             if (
-                is_valid_king_move_basic(board, king_x, king_y, new_x, new_y, player) &&
+                is_valid_king_move_basic(board, src_x, src_y, new_x, new_y, player) &&
                 !is_position_in_check(board, new_x, new_y, player)
             ) {
                 return true
@@ -769,7 +802,7 @@ module addr::chess {
         let game = create_game_(player1, player2_addr);
         let game_ = borrow_global_mut<Game>(object::object_address(&game));
 
-        // Place the white king at the center of the board.
+        // Place the white king to the center of the board.
         move_piece(&mut game_.board, 4, 0, 4, 4);
 
         // Assert the white king has valid moves in this new position.
@@ -1041,7 +1074,6 @@ module addr::chess {
         assert!(!is_valid_king_move_basic(&game_.board, 4, 0, 3, 0, color), 5);
     }
 
-    // todo
     fun is_valid_king_move_castle(
         board: &Board,
         src_x: u8,
@@ -1135,6 +1167,96 @@ module addr::chess {
         };
 
         return true
+    }
+
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_scholars_mate(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
+        let player1_addr = signer::address_of(player1);
+        let player2_addr = signer::address_of(player2);
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+
+        // Here we set up a bungled scholar's mate attempt. White put their bishop on
+        // b5 instead of c4, so the black king can just take their queen. Confirm that
+        // the king is not considered checkmated and that taking the queen is valid.
+
+        // Move the white pawn.
+        make_move(player1, game, 4, 1, 4, 3, 2);
+
+        // Move the black pawn.
+        make_move(player2, game, 4, 6, 4, 4, 2);
+
+        // Move the white bishop.
+        make_move(player1, game, 5, 0, 2, 3, 2);
+
+        // Move the black knight.
+        make_move(player2, game, 1, 7, 2, 5, 2);
+
+        // Move the white queen.
+        make_move(player1, game, 3, 0, 7, 4, 2);
+
+        // Move the other black knight.
+        make_move(player2, game, 6, 7, 5, 5, 2);
+
+        // Move the white queen in front of the king.
+        make_move(player1, game, 7, 4, 5, 6, 2);
+
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        // Confirm that the black king is in check.
+        assert!(is_king_in_check(&game_.board, BLACK), 1);
+
+        // Confirm that the black king is checkmated.
+        assert!(!king_has_valid_moves(&game_.board, 4, 7, BLACK), 2);
+
+        // Confirm that the game is considered a victory for white.
+        assert!(game_.game_status == WHITE_WON, 1);
+    }
+
+    #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
+    fun test_is_valid_king_move_under_threat(aptos_framework: &signer, player1: &signer, player2: &signer) acquires Game {
+        let player1_addr = signer::address_of(player1);
+        let player2_addr = signer::address_of(player2);
+        setup(aptos_framework, player1_addr, player2_addr);
+
+        let game = create_game_(player1, player2_addr);
+
+        // Here we set up a bungled scholar's mate attempt. White put their bishop on
+        // b5 instead of c4, so the black king can just take their queen. Confirm that
+        // the king is not considered checkmated and that taking the queen is valid.
+
+        // Move the white pawn.
+        make_move(player1, game, 4, 1, 4, 3, 2);
+
+        // Move the black pawn.
+        make_move(player2, game, 4, 6, 4, 4, 2);
+
+        // Move the white bishop to the wrong spot for a scholar's mate.
+        make_move(player1, game, 5, 0, 1, 4, 2);
+
+        // Move the black knight.
+        make_move(player2, game, 1, 7, 2, 5, 2);
+
+        // Move the white queen.
+        make_move(player1, game, 3, 0, 7, 4, 2);
+
+        // Move the other black knight.
+        make_move(player2, game, 6, 7, 5, 5, 2);
+
+        // Move the white queen in front of the king. Alas, it's not actually defended.
+        make_move(player1, game, 7, 4, 5, 6, 2);
+
+        let game_ = borrow_global_mut<Game>(object::object_address(&game));
+
+        // Confirm that the black king is in check.
+        assert!(is_king_in_check(&game_.board, BLACK), 1);
+
+        // Confirm that the black king is not checkmated.
+        assert!(king_has_valid_moves(&game_.board, 4, 7, BLACK), 2);
+
+        // Confirm that the black king can capture the queen.
+        make_move(player2, game, 4, 7, 5, 6, 2);
     }
 
     #[test(aptos_framework = @aptos_framework, player1 = @0x123, player2 = @0x321)]
