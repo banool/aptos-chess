@@ -182,8 +182,7 @@ module addr::chess {
         let board = vector::empty();
 
         // Create the board with starting positions for Player 1 (WHITE) and Player 2 (BLACK).
-        let i = 0;
-        while (i < 8) {
+        for (i in 0..8) {
             let row = vector::empty();
 
             if ((i == 0) || (i == 7)) {
@@ -208,21 +207,16 @@ module addr::chess {
                 } else {
                     color = BLACK;
                 };
-                let j = 0;
-                while (j < 8) {
+                for (j in 0..8) {
                     vector::push_back(&mut row, option::some(Piece { color: color, piece_type: PAWN }));
-                    j = j + 1;
                 }
             } else {
-                let j = 0;
-                while (j < 8) {
+                for (j in 0..8) {
                     vector::push_back(&mut row, option::none());
-                    j = j + 1;
                 };
             };
 
             vector::push_back(&mut board, row);
-            i = i + 1;
         };
 
         Board { board: board }
@@ -577,28 +571,15 @@ module addr::chess {
     }
 
     fun find_king(board: &Board, color: u8): (u8, u8) {
-        let y: u8 = 0;
-
-        loop {
-            let row = vector::borrow(&board.board, (y as u64));
-            let x: u8 = 0;
-            loop {
-                let piece_opt = vector::borrow(row, (x as u64));
+        for (x in 0..8) {
+            for (y in 0..8) {
+                let piece_opt = borrow_piece(board, x, y);
                 if (option::is_some(piece_opt)) {
                     let piece = option::borrow(piece_opt);
                     if (piece.color == color && piece.piece_type == KING) {
                         return (x, y)
                     };
                 };
-
-                x = x + 1;
-                if (x == 8) {
-                    break
-                }
-            };
-            y = y + 1;
-            if (y == 8) {
-                break
             };
         };
 
@@ -629,37 +610,27 @@ module addr::chess {
     fun is_position_in_check(board: &Board, position_x: u8, position_y: u8, color: u8): bool {
         let opponent = if (color == WHITE) { BLACK } else { WHITE };
 
-        let x: u8 = 0;
-        let y: u8 = 0;
+        for (x in 0..8) {
+            for (y in 0..8) {
+                let piece_opt = borrow_piece(board, x, y);
+                if (option::is_some(piece_opt)) {
+                    let piece = option::borrow(piece_opt);
 
-        loop {
-            let piece_opt = borrow_piece(board, x, y);
-            if (option::is_some(piece_opt)) {
-                let piece = option::borrow(piece_opt);
+                    if (piece.color == opponent) {
+                        // TODO: https://github.com/banool/aptos-chess/issues/8
+                        let piece_status = PieceStatus {
+                            queen_side_rook_has_moved: false,
+                            king_side_rook_has_moved: false,
+                            king_has_moved: false,
+                        };
 
-                if (piece.color == opponent) {
-                    // TODO: https://github.com/banool/aptos-chess/issues/8
-                    let piece_status = PieceStatus {
-                        queen_side_rook_has_moved: false,
-                        king_side_rook_has_moved: false,
-                        king_has_moved: false,
-                    };
-
-                    // If x,y == position_x, position_y this will return false due to is_valid_basic.
-                    if (is_valid_move(board, x, y, position_x, position_y, opponent, piece_status, &option::none(), true)) {
-                        return true
+                        // If x,y == position_x, position_y this will return false due to is_valid_basic.
+                        if (is_valid_move(board, x, y, position_x, position_y, opponent, piece_status, &option::none(), true)) {
+                            return true
+                        };
                     };
                 };
-            };
-
-            x = x + 1;
-            if (x == 8) {
-                x = 0;
-                y = y + 1;
-                if (y == 8) {
-                    break
-                };
-            };
+            }
         };
 
         return false
@@ -735,9 +706,8 @@ module addr::chess {
         vector::push_back(&mut dy, UP);
 
         let size = vector::length(&dx);
-        let i = 0;
 
-        while (i < size) {
+        for (i in 0..size) {
             let delta_x = vector::borrow(&dx, i);
             let delta_y = vector::borrow(&dy, i);
             let new_x = src_x;
@@ -765,8 +735,6 @@ module addr::chess {
             ) {
                 return true
             };
-
-            i = i + 1;
         };
 
         return false
@@ -949,6 +917,7 @@ module addr::chess {
         let current_y = src_y;
         let steps_remaining = delta_x;
 
+        // TODO: Should this be zero? It is for rooks.
         while (steps_remaining > 1) {
             current_x = if (x_step == RIGHT) { current_x + 1 } else if (x_step == LEFT) { current_x - 1 } else { current_x };
             current_y = if (y_step == UP) { current_y + 1 } else if (y_step == DOWN) { current_y - 1 } else { current_y };
@@ -1114,13 +1083,11 @@ module addr::chess {
         let (start, end) = if (is_king_side_castle) { (src_x + 1, rook_x - 1) } else { (rook_x + 1, src_x - 1) };
 
         // Ensure the squares between the king and rook are unoccupied.
-        let x = start;
-        while (x < end) {
+        for (x in start..end) {
             let piece_opt = vector::borrow(vector::borrow(&board.board, (src_y as u64)), (x as u64));
             if (option::is_some(piece_opt)) {
                 return false
             };
-            x = x + 1;
         };
 
         // Ensure the king is not currently in check. You cannot castle out of check.
