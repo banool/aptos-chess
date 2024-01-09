@@ -635,6 +635,7 @@ module addr::chess {
 
                     for (i in 0..vector::length(attackers)) {
                         let attacker = vector::borrow(attackers, i);
+                        // Check if the piece can capture the attacker
                         if (is_valid_move(board, x, y, attacker.x, attacker.y, player_color, piece_status, &option::none(), false)) {
                             // Check if moving the piece to the attacker's position does not leave the king in check.
                             let board_clone = *board;
@@ -642,12 +643,81 @@ module addr::chess {
                             if (!is_position_in_check(&board_clone, king_x, king_y, player_color)) {
                                 return true
                             }
-                        }
+                        };
+                        // Check if the piece can block the attack
+                        if (can_block_attack(board, x, y, king_x, king_y, attacker.x, attacker.y, player_color)) {
+                            let board_clone = *board;
+                            move_piece(&mut board_clone, x, y, attacker.x, attacker.y);
+                            if (!is_position_in_check(&board_clone, king_x, king_y, player_color)) {
+                                return true
+                            }
+                        };
                     }
                 }
             }
         };
         false
+    }
+
+    // Check if a piece can move to a square that would block the attack
+    fun can_block_attack(board: &Board, src_x: u8, src_y: u8, king_x: u8, king_y: u8, attacker_x: u8, attacker_y: u8, player_color: u8): bool {
+        let piece_status = PieceStatus {
+            queen_side_rook_has_moved: false,
+            king_side_rook_has_moved: false,
+            king_has_moved: false,
+        };
+        // This logic applies only to long-range attackers (bishop, rook, queen)
+        if (attacker_x == king_x || attacker_y == king_y || (difference(attacker_x, king_x) == difference(attacker_y, king_y))) {
+            let path = generate_path_to_king(king_x, king_y, attacker_x, attacker_y);
+            for (i in 0..vector::length(&path)) {
+                let square = vector::borrow(&path, i);
+                if (is_valid_move(board, src_x, src_y, square.x, square.y, player_color, piece_status, &option::none(), false)) {
+                    return true
+                }
+            }
+        };
+        false
+    }
+
+    fun generate_path_to_king(king_x: u8, king_y: u8, attacker_x: u8, attacker_y: u8): vector<EnPassantTarget> {
+        let path: vector<EnPassantTarget> = vector::empty();
+
+        let x_direction = if (king_x > attacker_x) { LEFT } else if (king_x < attacker_x) { RIGHT } else { 0 };
+        let y_direction = if (king_y > attacker_y) { DOWN } else if (king_y < attacker_y) { UP } else { 0 };
+
+        let current_x;
+        if (x_direction == UP) {
+            current_x = king_x + 1;
+        } else if (x_direction == DOWN) {
+            current_x = king_x - 1;
+        } else {
+            current_x = king_x;
+        };
+        let current_y;
+        if (y_direction == UP) {
+            current_y = king_y + 1;
+        } else if (y_direction == DOWN) {
+            current_y = king_y - 1;
+        } else {
+            current_y = king_y;
+        };
+
+        while (current_x != attacker_x || current_y != attacker_y) {
+            vector::push_back(&mut path, EnPassantTarget { x: current_x, y: current_y });
+
+            if (x_direction == UP) {
+                current_x = king_x + 1;
+            } else if (x_direction == DOWN) {
+                current_x = king_x - 1;
+            };
+            if (y_direction == UP) {
+                current_y = king_y + 1;
+            } else if (y_direction == DOWN) {
+                current_y = king_y - 1;
+            };
+        };
+
+        path
     }
 
     // Find attackers of a king.
