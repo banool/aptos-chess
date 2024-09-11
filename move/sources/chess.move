@@ -41,7 +41,7 @@ module addr::chess {
     const E_NO_DRAW_OFFERED: u64 = 8;
 
     /// You tried to accept a draw but you're the one who offered it.
-    const E_CANNOT_ACCEPT_OWN_DRAW_OFFER: u64 = 9;
+    const E_CANNOT_ACCEPT_OWN_DRAW_OFFER: u64 = 515;
 
     const ROOK: u8 = 1;
     const KNIGHT: u8 = 2;
@@ -102,8 +102,6 @@ module addr::chess {
         king_side_rook_has_moved: bool,
         king_has_moved: bool,
     }
-
-    // game_created_events: EventHandle<GameCreatedEvent>,
 
     #[event]
     struct GameCreatedEvent has drop, store {

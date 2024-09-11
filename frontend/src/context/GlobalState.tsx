@@ -97,7 +97,7 @@ function getModuleAddressAndName(network: Network): {
     case Network.TESTNET:
       return {
         address:
-          "0x0933ba379c760ab471a581f941aa8c01ff34f29a4149277e36b645a24910816a",
+          "0x505e057ec653a9a511e9c36e1cb1f2e80e54126c39849ac1fd69d95a4e756601",
         name: "chess",
       };
     case Network.MAINNET:
