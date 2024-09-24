@@ -2,6 +2,8 @@ import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 import React, { createContext, useMemo } from "react";
 import { defaultNetwork } from "../constants";
 import { useNetworkSelector } from "./networkSelection";
+import { getSdk, Sdk } from "../codegen/indexer/generated/queries";
+import { GraphQLClient } from "graphql-request";
 
 export type GlobalState = {
   /** derived from external state ?network=<network> query parameter - e.g. devnet */
@@ -12,6 +14,8 @@ export type GlobalState = {
   readonly moduleAddress: string;
   /** derived from network_value */
   readonly moduleName: string;
+  /** for querying the no code API, derived from network_value */
+  readonly noCodeClient: Sdk;
 };
 
 type GlobalActions = {
@@ -23,11 +27,18 @@ function deriveGlobalState({ network }: { network: Network }): GlobalState {
   const client = new Aptos(config);
   const { address: moduleAddress, name: moduleName } =
     getModuleAddressAndName(network);
+  // TODO: Handle other networks, this only works for testnet.
+  const nocodeClient = getSdk(
+    new GraphQLClient(
+      "https://api.shepherd.staging.gcp.aptosdev.com/id95f55d37b91d4b0884e693dc60340929/v1/graphql",
+    ),
+  );
   return {
     network,
     client,
     moduleAddress,
     moduleName,
+    noCodeClient: nocodeClient,
   };
 }
 

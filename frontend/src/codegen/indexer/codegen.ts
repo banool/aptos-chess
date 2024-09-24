@@ -2,7 +2,8 @@ import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema: "https://indexer.mainnet.aptoslabs.com/v1/graphql",
+  schema:
+    "https://api.shepherd.staging.gcp.aptosdev.com/id95f55d37b91d4b0884e693dc60340929/v1/graphql",
   documents: "src/codegen/indexer/queries/**/*.graphql",
   generates: {
     "src/codegen/indexer/generated/types.ts": {

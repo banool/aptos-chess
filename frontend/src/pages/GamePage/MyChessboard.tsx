@@ -1,4 +1,4 @@
-import { Box, Flex, Text, useToast } from "@chakra-ui/react";
+import { Box, Flex, Text, useDimensions, useToast } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess, ChessInstance, PieceType } from "chess.js";
@@ -29,7 +29,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
   const toast = useToast();
 
   const parentRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const dimensions = useDimensions(parentRef);
 
   const [localGame, setLocalGame] = useState(new Chess());
 
@@ -86,30 +86,6 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
     }
   }, [onChainGame, localGame]);
 
-  // The only way I could find to properly resize the Chessboard was to make use of its
-  // boardWidth property. This useEffect is used to figure out the width and height of
-  // the parent flex and use that to figure out boardWidth. We make sure this triggers
-  // when the game data changes, because we don't render the Chessboard until that data
-  // comes in.
-  useEffect(() => {
-    const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        setDimensions({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
-    });
-
-    if (parentRef.current) {
-      observer.observe(parentRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [localGame]);
-
   if (error) {
     console.log("error", error);
     return <Box p={10}>{`Error loading game: ${JSON.stringify(error)}`}</Box>;
@@ -134,14 +110,15 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
   // of 100 pixels otherwise it breaks the board (it will just show the number zero),
   // even once the width and height update.
   // console.log(`Dimensions: ${JSON.stringify(dimensions)}`);
-  const width = Math.max(
-    Math.min(dimensions.width, dimensions.height) * 0.8,
-    24,
-  );
+  const availableWidth = dimensions?.contentBox.width || 0;
+  const availableHeight = dimensions?.contentBox.height || 0;
+  const availableSize = Math.min(availableWidth, availableHeight);
+  const boardWidth = Math.max(availableSize * 0.8, 24);
+
   // If the width is less than 25 we hide the chessboard to avoid perceived flickering
   // on load.
   let boxDisplay = undefined;
-  if (width < 25) {
+  if (boardWidth < 25) {
     boxDisplay = "none";
   }
 
@@ -273,6 +250,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
     <Flex
       ref={parentRef}
       w="100%"
+      h="100%"
       flex="1"
       justifyContent="center"
       alignItems="center"
@@ -283,7 +261,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
         filter={onChainGame === undefined ? "blur(4px)" : "none"}
       >
         <Chessboard
-          boardWidth={width}
+          boardWidth={boardWidth}
           boardOrientation={boardOrientation}
           position={localGame.fen()}
           onPieceDrop={onPieceDrop}
@@ -293,7 +271,6 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
           arePremovesAllowed={false}
         />
       </Box>
-
       {bottom}
     </Flex>
   );

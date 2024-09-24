@@ -6,9 +6,9 @@ import { Link } from "react-router-dom";
 import "../css/wallet_selector.css";
 import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
 import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
-import { useGetAptToUsd } from "../api/useGetAptToUsd";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useGlobalState } from "../context/GlobalState";
+import { Sidebar } from "../components/Sidebar";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,34 +19,12 @@ interface LayoutProps {
 // TODO: Figure out how to make IconButton padding for GitHub button the same
 // as the color switcher button.
 export default function MainLayout({ children }: LayoutProps) {
-  // const { isLoading, aptToUsd, error } = useGetAptToUsd();
   const { network } = useWallet();
   const [globalState] = useGlobalState();
 
   let headerMiddle = null;
 
   /*
-  if (isLoading) {
-    headerMiddle = <Text textAlign={"center"}>Loading APT price...</Text>;
-  }
-  if (aptToUsd) {
-    headerMiddle = (
-      <Tooltip label="Refreshes every 15 seconds">
-        <Text textAlign={"center"}>{`1 APT = ${aptToUsd.toFixed(2)} USD`}</Text>
-      </Tooltip>
-    );
-  }
-  if (!isLoading && aptToUsd === undefined) {
-    headerMiddle = (
-      <Text textAlign={"center"}>
-        Error loading APT price, see console logs
-      </Text>
-    );
-    console.log("Error loading APT price:");
-    console.log(error);
-  }
-  */
-
   function getRandomFaceEmoji(): string {
     const emojis = [
       "😀",
@@ -75,6 +53,7 @@ export default function MainLayout({ children }: LayoutProps) {
       {getRandomFaceEmoji().repeat(3)}
     </Text>
   );
+  */
 
   let walletNetworkName: string | undefined = network?.name;
   if (network?.name.toLowerCase().startsWith("local")) {
@@ -142,29 +121,14 @@ export default function MainLayout({ children }: LayoutProps) {
           </Flex>
         </Flex>
       </Box>
-      {children}
+      <Flex flex="1">
+        <Sidebar />
+        <Box flex="1" w="100%" overflowY="auto">
+          {children}
+        </Box>
+      </Flex>
     </Box>
   );
-
-  // Blur the content if we're connecting a wallet.
-  /*
-  let out;
-  if (isLoading) {
-    out = (
-      <Box
-        filter="blur(4px) brightness(0.8)"
-        pointerEvents="none"
-        position="absolute"
-        width="100%"
-        height="100%"
-      >
-        {body}
-      </Box>
-    );
-  } else {
-    out = body;
-  }
-  */
 
   return body;
 }

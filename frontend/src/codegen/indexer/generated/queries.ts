@@ -4,16 +4,16 @@ import { GraphQLClient } from "graphql-request";
 import * as Dom from "graphql-request/dist/types.dom";
 
 export const GetGames = `
-    query GetGames($eventType: String, $createdSpec: jsonb, $invitedSpec: jsonb) {
-  created: events(
-    where: {indexed_type: {_eq: $eventType}, data: {_contains: $createdSpec}}
-  ) {
-    data
+    query GetGames($userAddress: String) {
+  created: games(where: {creator_address: {_eq: $userAddress}}) {
+    object_address
+    opponent_address
+    game_created_timestamp
   }
-  invited: events(
-    where: {indexed_type: {_eq: $eventType}, data: {_contains: $invitedSpec}}
-  ) {
-    data
+  invited: games(where: {opponent_address: {_eq: $userAddress}}) {
+    object_address
+    creator_address
+    game_created_timestamp
   }
 }
     `;

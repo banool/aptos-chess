@@ -1,40 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { GetGames } from "../codegen/indexer/generated/queries";
 import { useGlobalState } from "../context/GlobalState";
-import { AccountAddress } from "@aptos-labs/ts-sdk";
-import { GameCreatedEvent } from "../types/surf";
+import { AccountAddressInput } from "@aptos-labs/ts-sdk";
 import { GetGamesQuery } from "../codegen/indexer/generated/operations";
 
-export type GamesLookup = {
-  created: GameCreatedEvent[];
-  invited: GameCreatedEvent[];
-};
-
 export function useGames(
-  userAddress: AccountAddress,
+  userAddress: AccountAddressInput,
   { enabled }: { enabled?: boolean },
 ) {
   const [globalState] = useGlobalState();
-  return useQuery<GamesLookup>({
+  return useQuery<GetGamesQuery>({
     queryKey: ["getGames", userAddress],
     queryFn: async () => {
-      const eventType = `${globalState.moduleAddress}::chess::GameCreatedEvent`;
-      const createdSpec = {
-        creator_address: userAddress,
-      };
-      const invitedSpec = {
-        invited_address: userAddress,
-      };
-      const response = await globalState.client.queryIndexer<GetGamesQuery>({
-        query: {
-          query: GetGames,
-          variables: { eventType, createdSpec, invitedSpec },
-        },
+      return await globalState.noCodeClient.GetGames({
+        userAddress: userAddress.toString(),
       });
-      return {
-        created: response.created.map((e) => e.data),
-        invited: response.invited.map((e) => e.data),
-      };
     },
     refetchInterval: 10000,
     retry: false,
