@@ -1,8 +1,7 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import {
   Box,
   Text,
-  Link as ChakraLink,
   Spinner,
   Card,
   CardHeader,
@@ -10,12 +9,17 @@ import {
   Heading,
 } from "@chakra-ui/react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { Link as ReactRouterLink } from "react-router-dom";
+import { Link as ReactRouterLink, useLocation } from "react-router-dom";
 import { useGlobalState } from "../context/GlobalState";
 import { useGames } from "../api/useGames";
 
 export const Sidebar = () => {
-  const { account } = useWallet();
+  // Just for demo purposes.
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const noSidebar = searchParams.has("noSidebar");
+
+  const { account, isLoading: walletIsLoading } = useWallet();
   const userAddress = account?.address;
   const [globalState] = useGlobalState();
 
@@ -25,22 +29,36 @@ export const Sidebar = () => {
 
   const width = "300px";
 
-  const skeleton = (
-    <Box p={4} width={width}>
-      <Spinner />
+  const skeleton = (inner?: ReactNode) => (
+    <Box
+      p={4}
+      width={width}
+      borderRight="1px solid"
+      borderRightColor="gray.200"
+      overflowY="auto"
+    >
+      {inner || <Spinner />}
     </Box>
   );
 
-  if (!userAddress || isLoading) {
-    return skeleton;
+  if (noSidebar) {
+    return skeleton("Sidebar has no query to power it!");
+  }
+
+  if (walletIsLoading) {
+    return skeleton("Wallet connecting...");
+  }
+
+  if (!userAddress) {
+    return skeleton("Connect your wallet.");
+  }
+
+  if (isLoading) {
+    return skeleton();
   }
 
   if (error) {
-    return (
-      <Box p={4} width={width}>
-        <Text>Error loading games {JSON.stringify(error)}</Text>
-      </Box>
-    );
+    return skeleton(`Error loading games: ${JSON.stringify(error)}`);
   }
 
   const createdGames = data?.created || [];
@@ -115,5 +133,3 @@ export const Sidebar = () => {
     </Box>
   );
 };
-
-export default Sidebar;
