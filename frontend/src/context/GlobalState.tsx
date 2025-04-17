@@ -16,6 +16,8 @@ export type GlobalState = {
   readonly moduleName: string;
   /** for querying the no code API, derived from network_value */
   readonly noCodeClient: Sdk;
+  /** API key for the no code API */
+  readonly noCodeApiKey: string;
 };
 
 type GlobalActions = {
@@ -30,7 +32,7 @@ function deriveGlobalState({ network }: { network: Network }): GlobalState {
   // TODO: Handle other networks, this only works for testnet.
   const nocodeClient = getSdk(
     new GraphQLClient(
-      "https://api.shepherd.staging.gcp.aptosdev.com/id95f55d37b91d4b0884e693dc60340929/v1/graphql",
+      "https://api.testnet.staging.aptoslabs.com/nocode/v1/api/cm9lbaypy000as6011st0h404/v1/graphql",
     ),
   );
   return {
@@ -39,6 +41,7 @@ function deriveGlobalState({ network }: { network: Network }): GlobalState {
     moduleAddress,
     moduleName,
     noCodeClient: nocodeClient,
+    noCodeApiKey: "AG-6FSTEBEJMBGSVK23KQYXCESXYEBX9AADY",
   };
 }
 

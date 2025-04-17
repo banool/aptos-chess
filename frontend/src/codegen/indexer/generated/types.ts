@@ -16,6 +16,7 @@ export type Scalars = {
   Boolean: boolean;
   Int: number;
   Float: number;
+  bigint: bigint;
   timestamp: string;
 };
 
@@ -52,6 +53,19 @@ export type String_comparison_exp = {
   _similar: InputMaybe<Scalars["String"]>;
 };
 
+/** Boolean expression to compare columns of type "bigint". All fields are combined with logical 'AND'. */
+export type bigint_comparison_exp = {
+  _eq: InputMaybe<Scalars["bigint"]>;
+  _gt: InputMaybe<Scalars["bigint"]>;
+  _gte: InputMaybe<Scalars["bigint"]>;
+  _in: InputMaybe<Array<Scalars["bigint"]>>;
+  _is_null: InputMaybe<Scalars["Boolean"]>;
+  _lt: InputMaybe<Scalars["bigint"]>;
+  _lte: InputMaybe<Scalars["bigint"]>;
+  _neq: InputMaybe<Scalars["bigint"]>;
+  _nin: InputMaybe<Array<Scalars["bigint"]>>;
+};
+
 /** ordering argument of a cursor */
 export enum cursor_ordering {
   /** ascending ordering of the cursor */
@@ -63,10 +77,10 @@ export enum cursor_ordering {
 /** columns and relationships of "games" */
 export type games = {
   __typename?: "games";
-  creator_address: Scalars["String"];
-  game_created_timestamp: Maybe<Scalars["timestamp"]>;
+  created_at: Scalars["timestamp"];
+  creator: Scalars["String"];
   object_address: Scalars["String"];
-  opponent_address: Scalars["String"];
+  opponent: Scalars["String"];
 };
 
 /** Boolean expression to filter rows from the table "games". All fields are combined with a logical 'AND'. */
@@ -74,30 +88,30 @@ export type games_bool_exp = {
   _and: InputMaybe<Array<games_bool_exp>>;
   _not: InputMaybe<games_bool_exp>;
   _or: InputMaybe<Array<games_bool_exp>>;
-  creator_address: InputMaybe<String_comparison_exp>;
-  game_created_timestamp: InputMaybe<timestamp_comparison_exp>;
+  created_at: InputMaybe<timestamp_comparison_exp>;
+  creator: InputMaybe<String_comparison_exp>;
   object_address: InputMaybe<String_comparison_exp>;
-  opponent_address: InputMaybe<String_comparison_exp>;
+  opponent: InputMaybe<String_comparison_exp>;
 };
 
 /** Ordering options when selecting data from "games". */
 export type games_order_by = {
-  creator_address: InputMaybe<order_by>;
-  game_created_timestamp: InputMaybe<order_by>;
+  created_at: InputMaybe<order_by>;
+  creator: InputMaybe<order_by>;
   object_address: InputMaybe<order_by>;
-  opponent_address: InputMaybe<order_by>;
+  opponent: InputMaybe<order_by>;
 };
 
 /** select columns of table "games" */
 export enum games_select_column {
   /** column name */
-  creator_address = "creator_address",
+  created_at = "created_at",
   /** column name */
-  game_created_timestamp = "game_created_timestamp",
+  creator = "creator",
   /** column name */
   object_address = "object_address",
   /** column name */
-  opponent_address = "opponent_address",
+  opponent = "opponent",
 }
 
 /** Streaming cursor of the table "games" */
@@ -110,10 +124,10 @@ export type games_stream_cursor_input = {
 
 /** Initial value of the column from where the streaming should start */
 export type games_stream_cursor_value_input = {
-  creator_address: InputMaybe<Scalars["String"]>;
-  game_created_timestamp: InputMaybe<Scalars["timestamp"]>;
+  created_at: InputMaybe<Scalars["timestamp"]>;
+  creator: InputMaybe<Scalars["String"]>;
   object_address: InputMaybe<Scalars["String"]>;
-  opponent_address: InputMaybe<Scalars["String"]>;
+  opponent: InputMaybe<Scalars["String"]>;
 };
 
 /** column ordering options */
@@ -132,10 +146,62 @@ export enum order_by {
   desc_nulls_last = "desc_nulls_last",
 }
 
+/** columns and relationships of "processor_status" */
+export type processor_status = {
+  __typename?: "processor_status";
+  last_success_version: Scalars["bigint"];
+  last_transaction_timestamp: Maybe<Scalars["timestamp"]>;
+  last_updated: Scalars["timestamp"];
+};
+
+/** Boolean expression to filter rows from the table "processor_status". All fields are combined with a logical 'AND'. */
+export type processor_status_bool_exp = {
+  _and: InputMaybe<Array<processor_status_bool_exp>>;
+  _not: InputMaybe<processor_status_bool_exp>;
+  _or: InputMaybe<Array<processor_status_bool_exp>>;
+  last_success_version: InputMaybe<bigint_comparison_exp>;
+  last_transaction_timestamp: InputMaybe<timestamp_comparison_exp>;
+  last_updated: InputMaybe<timestamp_comparison_exp>;
+};
+
+/** Ordering options when selecting data from "processor_status". */
+export type processor_status_order_by = {
+  last_success_version: InputMaybe<order_by>;
+  last_transaction_timestamp: InputMaybe<order_by>;
+  last_updated: InputMaybe<order_by>;
+};
+
+/** select columns of table "processor_status" */
+export enum processor_status_select_column {
+  /** column name */
+  last_success_version = "last_success_version",
+  /** column name */
+  last_transaction_timestamp = "last_transaction_timestamp",
+  /** column name */
+  last_updated = "last_updated",
+}
+
+/** Streaming cursor of the table "processor_status" */
+export type processor_status_stream_cursor_input = {
+  /** Stream column input with initial value */
+  initial_value: processor_status_stream_cursor_value_input;
+  /** cursor ordering */
+  ordering: InputMaybe<cursor_ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type processor_status_stream_cursor_value_input = {
+  last_success_version: InputMaybe<Scalars["bigint"]>;
+  last_transaction_timestamp: InputMaybe<Scalars["timestamp"]>;
+  last_updated: InputMaybe<Scalars["timestamp"]>;
+};
+
 export type query_root = {
   __typename?: "query_root";
   /** fetch data from the table: "games" */
   games: Array<games>;
+  /** fetch data from the table: "processor_status" */
+  processor_status: Array<processor_status>;
 };
 
 export type query_rootgamesArgs = {
@@ -146,12 +212,24 @@ export type query_rootgamesArgs = {
   where: InputMaybe<games_bool_exp>;
 };
 
+export type query_rootprocessor_statusArgs = {
+  distinct_on: InputMaybe<Array<processor_status_select_column>>;
+  limit: InputMaybe<Scalars["Int"]>;
+  offset: InputMaybe<Scalars["Int"]>;
+  order_by: InputMaybe<Array<processor_status_order_by>>;
+  where: InputMaybe<processor_status_bool_exp>;
+};
+
 export type subscription_root = {
   __typename?: "subscription_root";
   /** fetch data from the table: "games" */
   games: Array<games>;
   /** fetch data from the table in a streaming manner: "games" */
   games_stream: Array<games>;
+  /** fetch data from the table: "processor_status" */
+  processor_status: Array<processor_status>;
+  /** fetch data from the table in a streaming manner: "processor_status" */
+  processor_status_stream: Array<processor_status>;
 };
 
 export type subscription_rootgamesArgs = {
@@ -166,6 +244,20 @@ export type subscription_rootgames_streamArgs = {
   batch_size: Scalars["Int"];
   cursor: Array<InputMaybe<games_stream_cursor_input>>;
   where: InputMaybe<games_bool_exp>;
+};
+
+export type subscription_rootprocessor_statusArgs = {
+  distinct_on: InputMaybe<Array<processor_status_select_column>>;
+  limit: InputMaybe<Scalars["Int"]>;
+  offset: InputMaybe<Scalars["Int"]>;
+  order_by: InputMaybe<Array<processor_status_order_by>>;
+  where: InputMaybe<processor_status_bool_exp>;
+};
+
+export type subscription_rootprocessor_status_streamArgs = {
+  batch_size: Scalars["Int"];
+  cursor: Array<InputMaybe<processor_status_stream_cursor_input>>;
+  where: InputMaybe<processor_status_bool_exp>;
 };
 
 /** Boolean expression to compare columns of type "timestamp". All fields are combined with logical 'AND'. */

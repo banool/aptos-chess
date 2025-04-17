@@ -9,13 +9,13 @@ export type GetGamesQuery = {
   created: Array<{
     __typename?: "games";
     object_address: string;
-    opponent_address: string;
-    game_created_timestamp?: any | null;
+    opponent: string;
+    created_at: any;
   }>;
   invited: Array<{
     __typename?: "games";
     object_address: string;
-    creator_address: string;
-    game_created_timestamp?: any | null;
+    creator: string;
+    created_at: any;
   }>;
 };

@@ -1,12 +1,12 @@
 query GetGames($userAddress: String) {
-  created: games(where: {creator_address: {_eq: $userAddress}}) {
+  created: games(where: {creator: {_eq: $userAddress}}) {
     object_address
-    opponent_address
-    game_created_timestamp
+    opponent
+    created_at
   }
-  invited: games(where: {opponent_address: {_eq: $userAddress}}) {
+  invited: games(where: {opponent: {_eq: $userAddress}}) {
     object_address
-    creator_address
-    game_created_timestamp
+    creator
+    created_at
   }
 }

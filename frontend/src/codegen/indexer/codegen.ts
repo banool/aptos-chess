@@ -1,9 +1,20 @@
 import type { CodegenConfig } from "@graphql-codegen/cli";
 
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  throw new Error("API_KEY is not set");
+}
+
 const config: CodegenConfig = {
   overwrite: true,
-  schema:
-    "https://api.shepherd.staging.gcp.aptosdev.com/id95f55d37b91d4b0884e693dc60340929/v1/graphql",
+  schema: {
+    "https://api.testnet.staging.aptoslabs.com/nocode/v1/api/cm9lbaypy000as6011st0h404/v1/graphql":
+      {
+        headers: {
+          authorization: `Bearer ${API_KEY}`,
+        },
+      },
+  },
   documents: "src/codegen/indexer/queries/**/*.graphql",
   generates: {
     "src/codegen/indexer/generated/types.ts": {

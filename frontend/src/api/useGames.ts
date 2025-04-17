@@ -11,9 +11,14 @@ export function useGames(
   return useQuery<GetGamesQuery>({
     queryKey: ["getGames", userAddress],
     queryFn: async () => {
-      return await globalState.noCodeClient.GetGames({
-        userAddress: userAddress.toString(),
-      });
+      return await globalState.noCodeClient.GetGames(
+        {
+          userAddress: userAddress.toString(),
+        },
+        {
+          authorization: `Bearer ${globalState.noCodeApiKey}`,
+        },
+      );
     },
     refetchInterval: 10000,
     retry: false,

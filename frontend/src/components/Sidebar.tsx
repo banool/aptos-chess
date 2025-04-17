@@ -36,13 +36,15 @@ export const Sidebar = () => {
       borderRight="1px solid"
       borderRightColor="gray.200"
       overflowY="auto"
+      fontSize={"24px"}
+      textAlign={"center"}
     >
       {inner || <Spinner />}
     </Box>
   );
 
   if (noSidebar) {
-    return skeleton("Sidebar has no query to power it!");
+    return skeleton("Sidebar has no query to power it???");
   }
 
   if (walletIsLoading) {
@@ -87,12 +89,11 @@ export const Sidebar = () => {
               to={`/${game.object_address}?network=${globalState.network}`}
             >
               <CardHeader pb={2}>
-                <Heading size="sm">Game with {game.opponent_address}</Heading>
+                <Heading size="sm">Game with {game.opponent}</Heading>
               </CardHeader>
               <CardBody pt={0}>
                 <Text fontSize="xs" color="gray.600">
-                  Created at{" "}
-                  {new Date(game.game_created_timestamp).toLocaleString()}
+                  Created at {new Date(game.created_at).toLocaleString()}
                 </Text>
               </CardBody>
             </Card>
@@ -116,12 +117,11 @@ export const Sidebar = () => {
               to={`/${game.object_address}?network=${globalState.network}`}
             >
               <CardHeader pb={2}>
-                <Heading size="sm">Game with {game.creator_address}</Heading>
+                <Heading size="sm">Game with {game.creator}</Heading>
               </CardHeader>
               <CardBody pt={0}>
                 <Text fontSize="xs" color="gray.600">
-                  Invited on{" "}
-                  {new Date(game.game_created_timestamp).toLocaleString()}
+                  Invited on {new Date(game.created_at).toLocaleString()}
                 </Text>
               </CardBody>
             </Card>
