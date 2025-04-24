@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import { getChessIdentifier, useGlobalState } from "../../context/GlobalState";
 import { AccountAddress, TransactionResponseType } from "@aptos-labs/ts-sdk";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { Link as ReactRouterLink } from "react-router-dom";
+import { Link as ReactRouterLink, useLocation } from "react-router-dom";
 import { Link as ChakraLink } from "@chakra-ui/react";
+import { useGetAnsAddress } from "../../api/useGetAnsAddress";
 
 export const Body = () => {
   const { account, signAndSubmitTransaction } = useWallet();
@@ -13,6 +14,18 @@ export const Body = () => {
   const [gameAddress, setGameAddress] = useState("");
   const toast = useToast();
 
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const noSidebar = searchParams.has("noSidebar");
+
+  const {
+    data: ansAddress,
+    isLoading: isAnsAddressLoading,
+    error: ansAddressError,
+  } = useGetAnsAddress(inputValue, {
+    enabled: inputValue.endsWith(".apt"),
+  });
+
   const handleInputChange = (e: {
     target: { value: React.SetStateAction<string> };
   }) => {
@@ -20,10 +33,11 @@ export const Body = () => {
   };
 
   const handleSubmit = async () => {
+    const opponentAddress = ansAddress ?? inputValue;
     const data = {
       function: getChessIdentifier(globalState, "create_game") as any,
       typeArguments: [],
-      functionArguments: [inputValue],
+      functionArguments: [opponentAddress],
     };
 
     try {
@@ -58,12 +72,14 @@ export const Body = () => {
     }
   };
 
-  const inputValid = AccountAddress.isValid({
-    input: inputValue,
-    strict: true,
-  }).valid;
+  const inputValid =
+    AccountAddress.isValid({
+      input: inputValue,
+      strict: true,
+    }).valid || inputValue.endsWith(".apt");
 
-  const buttonEnabled = inputValid && account !== null;
+  const buttonEnabled =
+    inputValid && account !== null && !isAnsAddressLoading && !ansAddressError;
 
   // TODO: Support ANS.
   return (
@@ -73,7 +89,7 @@ export const Body = () => {
       </Box>
       <Flex alignContent="center">
         <Input
-          placeholder="Enter account address (ANS not supported right now sorry!!)"
+          placeholder="Enter account address or ANS name"
           value={inputValue}
           onChange={handleInputChange}
           mb={4}
@@ -88,6 +104,10 @@ export const Body = () => {
           Create Game
         </Button>
       </Flex>
+      {isAnsAddressLoading && <Text>Loading address for ANS name...</Text>}
+      {ansAddressError && (
+        <Text>Error loading ANS address: {ansAddressError.message}</Text>
+      )}
       {gameAddress && (
         <Box>
           <Text>
@@ -95,7 +115,7 @@ export const Body = () => {
             <ChakraLink
               color="lightblue"
               as={ReactRouterLink}
-              to={`/${gameAddress}?network=${globalState.network}`}
+              to={`/${gameAddress}?network=${globalState.network}${noSidebar ? "&noSidebar=true" : ""}`}
             >
               {gameAddress}
             </ChakraLink>
