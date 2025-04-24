@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
 
     # Install pnpm
-    - uses: pnpm/action-setup@v2
+    - uses: pnpm/action-setup@v4
       with:
         version: 8.9.0
         run_install: false
@@ -27,7 +27,7 @@ jobs:
     - run: cd frontend && CI= pnpm build
 
     # Upload the artifact.
-    - uses: actions/upload-pages-artifact@v1
+    - uses: actions/upload-pages-artifact@v3
       with:
         path: frontend/build
 
@@ -43,6 +43,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    - uses: actions/configure-pages@v1
+    - uses: actions/configure-pages@v4
     - id: deployment
-      uses: actions/deploy-pages@v1
+      uses: actions/deploy-pages@v4
