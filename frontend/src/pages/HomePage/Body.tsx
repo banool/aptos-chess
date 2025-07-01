@@ -1,7 +1,11 @@
 import { Box, Text, Button, Input, Flex, useToast } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { getChessIdentifier, useGlobalState } from "../../context/GlobalState";
-import { AccountAddress, TransactionResponseType } from "@aptos-labs/ts-sdk";
+import {
+  AccountAddress,
+  InputGenerateTransactionPayloadData,
+  TransactionResponseType,
+} from "@aptos-labs/ts-sdk";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Link as ReactRouterLink, useLocation } from "react-router-dom";
 import { Link as ChakraLink } from "@chakra-ui/react";
@@ -34,16 +38,17 @@ export const Body = () => {
 
   const handleSubmit = async () => {
     const opponentAddress = ansAddress ?? inputValue;
-    const data = {
+    const data: InputGenerateTransactionPayloadData = {
       function: getChessIdentifier(globalState, "create_game") as any,
       typeArguments: [],
-      functionArguments: [opponentAddress],
+      functionArguments: [opponentAddress.toString()],
     };
 
     try {
       let submissionResponse = await signAndSubmitTransaction({
         sender: account!.address,
         data,
+        withFeePayer: true,
       });
       const waitResponse = await globalState.client.waitForTransaction({
         transactionHash: submissionResponse.hash,
@@ -115,7 +120,9 @@ export const Body = () => {
             <ChakraLink
               color="lightblue"
               as={ReactRouterLink}
-              to={`/${gameAddress}?network=${globalState.network}${noSidebar ? "&noSidebar=true" : ""}`}
+              to={`/${gameAddress}?network=${globalState.network}${
+                noSidebar ? "&noSidebar=true" : ""
+              }`}
             >
               {gameAddress}
             </ChakraLink>

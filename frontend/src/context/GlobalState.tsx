@@ -4,6 +4,7 @@ import { defaultNetwork } from "../constants";
 import { useNetworkSelector } from "./networkSelection";
 import { getSdk, Sdk } from "../codegen/indexer/generated/queries";
 import { GraphQLClient } from "graphql-request";
+import { createGasStationClient } from "@aptos-labs/gas-station-client";
 
 export type GlobalState = {
   /** derived from external state ?network=<network> query parameter - e.g. devnet */
@@ -25,7 +26,17 @@ type GlobalActions = {
 };
 
 function deriveGlobalState({ network }: { network: Network }): GlobalState {
-  const config = new AptosConfig({ network });
+  // TODO: Handle other networks, this only works for testnet.
+  const gasStationClient = createGasStationClient({
+    network,
+    apiKey: "AG-NCLQHXTM2P4NNK5RGZSWIBSZKSXNSYEWO",
+  });
+  const config = new AptosConfig({
+    network,
+    pluginSettings: {
+      TRANSACTION_SUBMITTER: gasStationClient,
+    },
+  });
   const client = new Aptos(config);
   const { address: moduleAddress, name: moduleName } =
     getModuleAddressAndName(network);
