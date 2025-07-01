@@ -12,6 +12,20 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Link as ReactRouterLink, useLocation } from "react-router-dom";
 import { useGlobalState } from "../context/GlobalState";
 import { useGames } from "../api/useGames";
+import { useGetAnsName } from "../api/useGetAnsName";
+
+// Component to display either ANS name or address
+const AddressOrAnsName = ({ address }: { address: string }) => {
+  const { data: ansName, isLoading } = useGetAnsName(address, {
+    enabled: !!address,
+  });
+
+  if (isLoading) {
+    return <>{address}</>;
+  }
+
+  return <>{ansName ? `${ansName}.apt` : address}</>;
+};
 
 export const Sidebar = () => {
   // Just for demo purposes.
@@ -89,7 +103,9 @@ export const Sidebar = () => {
               to={`/${game.object_address}?network=${globalState.network}`}
             >
               <CardHeader pb={2}>
-                <Heading size="sm">Game with {game.opponent}</Heading>
+                <Heading size="sm">
+                  Game with <AddressOrAnsName address={game.opponent} />
+                </Heading>
               </CardHeader>
               <CardBody pt={0}>
                 <Text fontSize="xs" color="gray.600">
@@ -117,7 +133,9 @@ export const Sidebar = () => {
               to={`/${game.object_address}?network=${globalState.network}`}
             >
               <CardHeader pb={2}>
-                <Heading size="sm">Game with {game.creator}</Heading>
+                <Heading size="sm">
+                  Game with <AddressOrAnsName address={game.creator} />
+                </Heading>
               </CardHeader>
               <CardBody pt={0}>
                 <Text fontSize="xs" color="gray.600">

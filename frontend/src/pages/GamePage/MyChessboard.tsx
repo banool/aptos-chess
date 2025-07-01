@@ -95,10 +95,10 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
   let boardOrientation: BoardOrientation = "white";
   if (account !== null && onChainGame !== undefined) {
     // TODO: Update this if we break the player1 is always white invariant.
-    if (onChainGame.player1 === account.address) {
+    if (onChainGame.player1 === account.address.toString()) {
       boardOrientation = "white";
       userIsPlayer = true;
-    } else if (onChainGame.player2 === account.address) {
+    } else if (onChainGame.player2 === account.address.toString()) {
       boardOrientation = "black";
       userIsPlayer = true;
     } else {
@@ -189,6 +189,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
         let response = await signAndSubmitTransaction({
           sender: account.address,
           data,
+          withFeePayer: true,
         });
         await globalState.client.waitForTransaction({
           transactionHash: response.hash,

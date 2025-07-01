@@ -5,17 +5,19 @@ import {
   setLocalStorageWithExpiry,
 } from "../utils/utils";
 import { Network } from "@aptos-labs/ts-sdk";
+import { useGlobalState } from "../context/GlobalState";
 
 const TTL = 3600000; // 1 hour
 
 export function useGetChainId(network: Network): string | null {
+  const [globalState] = useGlobalState();
   let chainIdFromCache = getLocalStorageWithExpiry(`${network}ChainId`);
 
   const { data } = useQuery({
     queryKey: ["ledgerInfo", network],
     queryFn: () => {
       try {
-        return getLedgerInfoWithoutResponseError(network);
+        return getLedgerInfoWithoutResponseError(globalState.client, network);
       } catch (e) {
         console.log(`Error fetching chainId for ${network}: ${e}`);
         return null;
