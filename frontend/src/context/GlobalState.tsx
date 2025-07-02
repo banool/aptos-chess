@@ -36,6 +36,9 @@ function deriveGlobalState({ network }: { network: Network }): GlobalState {
     pluginSettings: {
       TRANSACTION_SUBMITTER: gasStationClient,
     },
+    clientConfig: {
+      API_KEY: "AG-9ZHN7KXXIZO9SZDZ3NPI4S3VMT4NTP12"
+    }
   });
   const client = new Aptos(config);
   const { address: moduleAddress, name: moduleName } =
