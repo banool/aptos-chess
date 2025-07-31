@@ -32,7 +32,7 @@ export default function NetworkSelect() {
     selectNetwork(network_name);
   };
 
-  const networks: Network[] = [Network.MAINNET, Network.TESTNET, Network.LOCAL];
+  const networks: Network[] = [Network.TESTNET, Network.LOCAL];
   let options = [];
   for (const network of networks) {
     const item = NetworkAndChainId({ network });

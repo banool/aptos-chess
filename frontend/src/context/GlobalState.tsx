@@ -4,7 +4,10 @@ import { defaultNetwork } from "../constants";
 import { useNetworkSelector } from "./networkSelection";
 import { getSdk, Sdk } from "../codegen/indexer/generated/queries";
 import { GraphQLClient } from "graphql-request";
-import { createGasStationClient } from "@aptos-labs/gas-station-client";
+import {
+  createGasStationClient,
+  createGasStationClientRaw,
+} from "@aptos-labs/gas-station-client";
 
 export type GlobalState = {
   /** derived from external state ?network=<network> query parameter - e.g. devnet */
@@ -27,18 +30,30 @@ type GlobalActions = {
 
 function deriveGlobalState({ network }: { network: Network }): GlobalState {
   // TODO: Handle other networks, this only works for testnet.
-  const gasStationClient = createGasStationClient({
-    network,
-    apiKey: "AG-NCLQHXTM2P4NNK5RGZSWIBSZKSXNSYEWO",
+  // We build the gas station client raw so we can use staging.
+  const gasStationClient = createGasStationClientRaw({
+    baseUrl: "https://api.testnet.staging.aptoslabs.com/gs/v1",
+    interceptors: {
+      request: (request) => {
+        request.headers.set(
+          "authorization",
+          "Bearer AG-BYZAYOAVKBEFSRJCE7FL8P3HUVXGYZTV6",
+        );
+        return request;
+      },
+    },
   });
+  // We forcibly use staging here too.
   const config = new AptosConfig({
     network,
+    fullnode: "https://api.testnet.staging.aptoslabs.com/v1",
+    indexer: "https://api.testnet.staging.aptoslabs.com/v1/graphql",
     pluginSettings: {
       TRANSACTION_SUBMITTER: gasStationClient,
     },
     clientConfig: {
-      API_KEY: "AG-9ZHN7KXXIZO9SZDZ3NPI4S3VMT4NTP12"
-    }
+      API_KEY: "AG-NBHG5KQP5HL6TIOA8BUP9HV4S2OHIYTCW",
+    },
   });
   const client = new Aptos(config);
   const { address: moduleAddress, name: moduleName } =
