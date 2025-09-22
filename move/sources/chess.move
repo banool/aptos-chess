@@ -401,8 +401,8 @@ module addr::chess {
         if (piece_type == PAWN || piece_was_captured) {
             game_.num_half_moves_since_last_capture_or_pawn_advance = 0;
         } else {
-            game_.num_half_moves_since_last_capture_or_pawn_advance =
-                game_.num_half_moves_since_last_capture_or_pawn_advance + 1;
+            game_.num_half_moves_since_last_capture_or_pawn_advance = game_.num_half_moves_since_last_capture_or_pawn_advance
+                + 1;
         };
 
         let (enemy_king_x, enemy_king_y) = find_king(&game_.board, enemy_color);
@@ -414,16 +414,20 @@ module addr::chess {
         )) {
             // TODO: https://github.com/banool/aptos-chess/issues/5
             game_.game_status = if (color == WHITE) {
-                event::emit(GameFinishedEvent {
-                    winner_address: game_.player1,
-                    object_address: object::object_address(&game)
-                });
+                event::emit(
+                    GameFinishedEvent {
+                        winner_address: game_.player1,
+                        object_address: object::object_address(&game)
+                    }
+                );
                 WHITE_WON
             } else {
-                event::emit(GameFinishedEvent {
-                    winner_address: game_.player2,
-                    object_address: object::object_address(&game)
-                });
+                event::emit(
+                    GameFinishedEvent {
+                        winner_address: game_.player2,
+                        object_address: object::object_address(&game)
+                    }
+                );
                 BLACK_WON
             };
             return
@@ -439,7 +443,10 @@ module addr::chess {
     // If the the enemy king is in check, has no valid moves itself, and the enemy
     // can't take a piece or block to get their king out of check, that is checkmate.
     fun is_checkmate(
-        board: &Board, king_x: u8, king_y: u8, king_color: u8
+        board: &Board,
+        king_x: u8,
+        king_y: u8,
+        king_color: u8
     ): bool {
         let attackers = find_attackers(board, king_x, king_y, king_color);
         (
@@ -459,16 +466,20 @@ module addr::chess {
         let player_color = determine_color(game_, &player_addr);
 
         if (player_color == WHITE) {
-            event::emit(GameFinishedEvent {
-                winner_address: game_.player2,
-                object_address: object::object_address(&game)
-            }); 
+            event::emit(
+                GameFinishedEvent {
+                    winner_address: game_.player2,
+                    object_address: object::object_address(&game)
+                }
+            );
             game_.game_status = BLACK_WON;
         } else {
-            event::emit(GameFinishedEvent {
-                winner_address: game_.player1,
-                object_address: object::object_address(&game)
-            });
+            event::emit(
+                GameFinishedEvent {
+                    winner_address: game_.player1,
+                    object_address: object::object_address(&game)
+                }
+            );
             game_.game_status = WHITE_WON;
         }
     }
@@ -504,18 +515,18 @@ module addr::chess {
             error::invalid_state(E_CANNOT_ACCEPT_OWN_DRAW_OFFER)
         );
 
-        event::emit(GameFinishedEvent {
-            winner_address: @0x0,
-            object_address: object::object_address(&game)
-        });
+        event::emit(
+            GameFinishedEvent {
+                winner_address: @0x0,
+                object_address: object::object_address(&game)
+            }
+        );
         game_.game_status = DRAW;
     }
 
     #[test_only]
     fun setup(
-        aptos_framework: &signer,
-        player1_addr: address,
-        player2_addr: address
+        aptos_framework: &signer, player1_addr: address, player2_addr: address
     ) {
         account::create_account_for_test(player1_addr);
         account::create_account_for_test(player2_addr);
@@ -532,7 +543,11 @@ module addr::chess {
     // Useful for tests to move pieces wherever you want with no validation. Don't use
     // on the real board, only use it on a clone or in tests.
     fun move_piece(
-        board: &mut Board, src_x: u8, src_y: u8, dest_x: u8, dest_y: u8
+        board: &mut Board,
+        src_x: u8,
+        src_y: u8,
+        dest_x: u8,
+        dest_y: u8
     ) {
         // Take the piece.
         let piece = {
@@ -606,19 +621,18 @@ module addr::chess {
         if (piece_type == KING) {
             // We don't check if the king would be in check after this move, we do that
             // later.
-            valid_move =
-                (
-                    is_valid_king_move_basic(board, src_x, src_y, dest_x, dest_y, color)
-                        || is_valid_king_move_castle(
-                            board,
-                            src_x,
-                            src_y,
-                            dest_x,
-                            dest_y,
-                            color,
-                            &piece_status
-                        )
-                );
+            valid_move = (
+                is_valid_king_move_basic(board, src_x, src_y, dest_x, dest_y, color)
+                    || is_valid_king_move_castle(
+                        board,
+                        src_x,
+                        src_y,
+                        dest_x,
+                        dest_y,
+                        color,
+                        &piece_status
+                    )
+            );
         } else if (piece_type == QUEEN) {
             valid_move = is_valid_queen_move(board, src_x, src_y, dest_x, dest_y, color);
         } else if (piece_type == ROOK) {
@@ -779,7 +793,10 @@ module addr::chess {
 
     // Find attackers of a king.
     fun find_attackers(
-        board: &Board, king_x: u8, king_y: u8, king_color: u8
+        board: &Board,
+        king_x: u8,
+        king_y: u8,
+        king_color: u8
     ): vector<EnPassantTarget> {
         let piece_status = PieceStatus {
             queen_side_rook_has_moved: false,
@@ -819,7 +836,10 @@ module addr::chess {
     // This function checks whether the king of a particular color would be in check if
     // it were at the given position.
     fun is_position_in_check(
-        board: &Board, position_x: u8, position_y: u8, color: u8
+        board: &Board,
+        position_x: u8,
+        position_y: u8,
+        color: u8
     ): bool {
         let opponent_color = if (color == WHITE) { BLACK }
         else { WHITE };
@@ -1027,14 +1047,12 @@ module addr::chess {
         let delta_x = difference(src_x, dest_x);
         let delta_y = difference(src_y, dest_y);
 
-        let x_step =
-            if (src_x < dest_x) { RIGHT }
-            else if (src_x > dest_x) { LEFT }
-            else { 0 };
-        let y_step =
-            if (src_y < dest_y) { UP }
-            else if (src_y > dest_y) { DOWN }
-            else { 0 };
+        let x_step = if (src_x < dest_x) { RIGHT }
+        else if (src_x > dest_x) { LEFT }
+        else { 0 };
+        let y_step = if (src_y < dest_y) { UP }
+        else if (src_y > dest_y) { DOWN }
+        else { 0 };
 
         let current_x = src_x;
         let current_y = src_y;
@@ -1046,22 +1064,20 @@ module addr::chess {
         };
 
         while (steps_remaining > 0) {
-            current_x =
-                if (x_step == RIGHT) {
-                    current_x + 1
-                } else if (x_step == LEFT) {
-                    current_x - 1
-                } else {
-                    current_x
-                };
-            current_y =
-                if (y_step == UP) {
-                    current_y + 1
-                } else if (y_step == DOWN) {
-                    current_y - 1
-                } else {
-                    current_y
-                };
+            current_x = if (x_step == RIGHT) {
+                current_x + 1
+            } else if (x_step == LEFT) {
+                current_x - 1
+            } else {
+                current_x
+            };
+            current_y = if (y_step == UP) {
+                current_y + 1
+            } else if (y_step == DOWN) {
+                current_y - 1
+            } else {
+                current_y
+            };
 
             let row = vector::borrow(&board.board, (current_y as u64));
             let piece_opt = vector::borrow(row, (current_x as u64));
@@ -1232,31 +1248,27 @@ module addr::chess {
             return false
         };
 
-        let delta_x =
-            if (src_x > dest_x) {
-                src_x - dest_x
-            } else {
-                dest_x - src_x
-            };
-        let delta_y =
-            if (src_y > dest_y) {
-                src_y - dest_y
-            } else {
-                dest_y - src_y
-            };
+        let delta_x = if (src_x > dest_x) {
+            src_x - dest_x
+        } else {
+            dest_x - src_x
+        };
+        let delta_y = if (src_y > dest_y) {
+            src_y - dest_y
+        } else {
+            dest_y - src_y
+        };
 
         if (delta_x != delta_y) {
             return false
         };
 
-        let x_step =
-            if (src_x < dest_x) { RIGHT }
-            else if (src_x > dest_x) { LEFT }
-            else { 0 };
-        let y_step =
-            if (src_y < dest_y) { UP }
-            else if (src_y > dest_y) { DOWN }
-            else { 0 };
+        let x_step = if (src_x < dest_x) { RIGHT }
+        else if (src_x > dest_x) { LEFT }
+        else { 0 };
+        let y_step = if (src_y < dest_y) { UP }
+        else if (src_y > dest_y) { DOWN }
+        else { 0 };
 
         let current_x = src_x;
         let current_y = src_y;
@@ -1264,22 +1276,20 @@ module addr::chess {
 
         // TODO: Should this be zero? It is for rooks.
         while (steps_remaining > 1) {
-            current_x =
-                if (x_step == RIGHT) {
-                    current_x + 1
-                } else if (x_step == LEFT) {
-                    current_x - 1
-                } else {
-                    current_x
-                };
-            current_y =
-                if (y_step == UP) {
-                    current_y + 1
-                } else if (y_step == DOWN) {
-                    current_y - 1
-                } else {
-                    current_y
-                };
+            current_x = if (x_step == RIGHT) {
+                current_x + 1
+            } else if (x_step == LEFT) {
+                current_x - 1
+            } else {
+                current_x
+            };
+            current_y = if (y_step == UP) {
+                current_y + 1
+            } else if (y_step == DOWN) {
+                current_y - 1
+            } else {
+                current_y
+            };
 
             let row = vector::borrow(&board.board, (current_y as u64));
             let piece_opt = vector::borrow(row, (current_x as u64));
