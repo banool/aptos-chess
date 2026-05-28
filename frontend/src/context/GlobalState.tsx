@@ -4,10 +4,7 @@ import { defaultNetwork } from "../constants";
 import { useNetworkSelector } from "./networkSelection";
 import { getSdk, Sdk } from "../codegen/indexer/generated/queries";
 import { GraphQLClient } from "graphql-request";
-import {
-  createGasStationClient,
-  createGasStationClientRaw,
-} from "@aptos-labs/gas-station-client";
+import { GasStationTransactionSubmitter } from "@aptos-labs/gas-station-client";
 
 export type GlobalState = {
   /** derived from external state ?network=<network> query parameter - e.g. devnet */
@@ -30,18 +27,10 @@ type GlobalActions = {
 
 function deriveGlobalState({ network }: { network: Network }): GlobalState {
   // TODO: Handle other networks, this only works for testnet.
-  // We build the gas station client raw so we can use staging.
-  const gasStationClient = createGasStationClientRaw({
+  // We pass `baseUrl` explicitly so we can target the staging gas station.
+  const gasStationClient = new GasStationTransactionSubmitter({
     baseUrl: "https://api.testnet.staging.aptoslabs.com/gs/v1",
-    interceptors: {
-      request: (request) => {
-        request.headers.set(
-          "authorization",
-          "Bearer AG-BYZAYOAVKBEFSRJCE7FL8P3HUVXGYZTV6",
-        );
-        return request;
-      },
-    },
+    apiKey: "AG-BYZAYOAVKBEFSRJCE7FL8P3HUVXGYZTV6",
   });
   // We forcibly use staging here too.
   const config = new AptosConfig({
@@ -144,12 +133,11 @@ function getModuleAddressAndName(network: Network): {
         name: "chess",
       };
     case Network.MAINNET:
-      // Doesn't work right now.
-      return {
-        address:
-          "0x81e2e2499407693c81fe65c86405ca70df529438339d9da7a6fc2520142b591e",
-        name: "chess",
-      };
+      throw "MAINNET not supported right now";
+    case Network.SHELBYNET:
+      throw "SHELBYNET not supported";
+    case Network.NETNA:
+      throw "NETNA not supported";
     case Network.CUSTOM:
       throw "CUSTOM not supported";
   }
