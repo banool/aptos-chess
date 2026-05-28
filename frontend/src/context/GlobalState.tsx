@@ -2,6 +2,7 @@ import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 import React, { createContext, useMemo } from "react";
 import { defaultNetwork } from "../constants";
 import { useNetworkSelector } from "./networkSelection";
+import { DEFAULT_USE_FEE_PAYER, useFeePayerSelector } from "./feePayerSelection";
 import { getSdk, Sdk } from "../codegen/indexer/generated/queries";
 import { GraphQLClient } from "graphql-request";
 import { GasStationTransactionSubmitter } from "@aptos-labs/gas-station-client";
@@ -19,19 +20,32 @@ export type GlobalState = {
   readonly noCodeClient: Sdk;
   /** API key for the no code API */
   readonly noCodeApiKey: string;
+  /** whether to sponsor transactions via the gas station (fee payer flow) */
+  readonly useFeePayer: boolean;
 };
 
 type GlobalActions = {
   selectNetwork: ReturnType<typeof useNetworkSelector>[1];
+  setUseFeePayer: ReturnType<typeof useFeePayerSelector>[1];
 };
 
-function deriveGlobalState({ network }: { network: Network }): GlobalState {
+function deriveGlobalState({
+  network,
+  useFeePayer,
+}: {
+  network: Network;
+  useFeePayer: boolean;
+}): GlobalState {
   // TODO: Handle other networks, this only works for testnet.
   // We pass `baseUrl` explicitly so we can target the staging gas station.
-  const gasStationClient = new GasStationTransactionSubmitter({
-    baseUrl: "https://api.testnet.staging.aptoslabs.com/gs/v1",
-    apiKey: "AG-BYZAYOAVKBEFSRJCE7FL8P3HUVXGYZTV6",
-  });
+  // When the user toggles the fee payer off we skip the submitter entirely so
+  // the SDK falls back to direct submission and `withFeePayer: false`.
+  const gasStationClient = useFeePayer
+    ? new GasStationTransactionSubmitter({
+        baseUrl: "https://api.testnet.staging.aptoslabs.com/gs/v1",
+        apiKey: "AG-BYZAYOAVKBEFSRJCE7FL8P3HUVXGYZTV6",
+      })
+    : undefined;
   // We forcibly use staging here too.
   const config = new AptosConfig({
     network,
@@ -60,11 +74,13 @@ function deriveGlobalState({ network }: { network: Network }): GlobalState {
     moduleName,
     noCodeClient: nocodeClient,
     noCodeApiKey: "AG-6FSTEBEJMBGSVK23KQYXCESXYEBX9AADY",
+    useFeePayer,
   };
 }
 
 const initialGlobalState = deriveGlobalState({
   network: defaultNetwork,
+  useFeePayer: DEFAULT_USE_FEE_PAYER,
 });
 
 export const GlobalStateContext = createContext(initialGlobalState);
@@ -76,19 +92,22 @@ export const GlobalStateProvider = ({
   children: React.ReactNode;
 }) => {
   const [selectedNetwork, selectNetwork] = useNetworkSelector();
+  const [useFeePayer, setUseFeePayer] = useFeePayerSelector();
   const globalState: GlobalState = useMemo(
     () =>
       deriveGlobalState({
         network: selectedNetwork,
+        useFeePayer,
       }),
-    [selectedNetwork],
+    [selectedNetwork, useFeePayer],
   );
 
   const globalActions = useMemo(
     () => ({
       selectNetwork,
+      setUseFeePayer,
     }),
-    [selectNetwork],
+    [selectNetwork, setUseFeePayer],
   );
 
   return (

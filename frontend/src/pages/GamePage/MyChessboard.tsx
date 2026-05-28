@@ -189,7 +189,7 @@ export const MyChessboard = ({ gameAddress }: { gameAddress: string }) => {
         let response = await signAndSubmitTransaction({
           sender: account.address,
           data,
-          withFeePayer: true,
+          withFeePayer: globalState.useFeePayer,
         });
         await globalState.client.waitForTransaction({
           transactionHash: response.hash,

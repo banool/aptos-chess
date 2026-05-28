@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Flex, Heading, IconButton, Text } from "@chakra-ui/react";
 import { ColorModeSwitcher } from "../components/ColorModeSwitcher";
+import FeePayerToggle from "../components/FeePayerToggle";
 import NetworkSelect from "../components/NetworkSelect";
 import { Link } from "react-router-dom";
 import "../css/wallet_selector.css";
@@ -116,6 +117,7 @@ export default function MainLayout({ children }: LayoutProps) {
           </Flex>
           <Flex justifyContent="flex-end" alignItems="center" gap="2" flex="1">
             <ColorModeSwitcher />
+            <FeePayerToggle />
             <NetworkSelect />
             <WalletSelector />
           </Flex>

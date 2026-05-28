@@ -48,7 +48,7 @@ export const Body = () => {
       let submissionResponse = await signAndSubmitTransaction({
         sender: account!.address,
         data,
-        withFeePayer: true,
+        withFeePayer: globalState.useFeePayer,
       });
       const waitResponse = await globalState.client.waitForTransaction({
         transactionHash: submissionResponse.hash,
